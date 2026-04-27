@@ -1,0 +1,87 @@
+generator client {
+  provider        = "prisma-client-js"
+  // Required for Neon serverless WebSocket adapter (port 443)
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  phone     String?
+  city      String?
+  // "organizer" or "attendee"
+  type      String   @default("attendee")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events        Event[]
+  registrations Registration[]
+  savedEvents   SavedEvent[]
+}
+
+model Event {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  province    String
+  city        String?
+  venue       String?
+  startDate   DateTime
+  endDate     DateTime?
+  // matches EVENT_CATEGORIES ids: cultural, art, music, sports, religious, national, tourism, educational, business, tech, charity
+  category    String
+  // active | pending | completed | cancelled | draft
+  status      String    @default("pending")
+  capacity    Int       @default(0)
+  phone       String?
+  email       String?
+  website     String?
+  imageUrl    String?
+  style       String?
+  duration    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  organizer     User           @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+  organizerId   Int
+  registrations Registration[]
+  savedBy       SavedEvent[]
+
+  @@index([category])
+  @@index([province])
+  @@index([status])
+  @@index([startDate])
+}
+
+model Registration {
+  id        Int      @id @default(autoincrement())
+  name      String
+  phone     String
+  // pending | confirmed | cancelled
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+
+  user    User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId  Int?
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId Int
+}
+
+model SavedEvent {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+
+  user    User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId  Int
+  event   Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId Int
+
+  @@unique([userId, eventId])
+}
