@@ -13,6 +13,8 @@ const App = () => {
   const [selectedEvent, setSelectedEvent] = React.useState(null)
   const [prevPage, setPrevPage] = React.useState('landing')
   const [user, setUser] = React.useState({ name: '', type: null })
+  const [savedEvents, setSavedEvents] = React.useState([])
+  const toggleSave = (ev) => setSavedEvents(s => s.some(e => e.id === ev.id) ? s.filter(e => e.id !== ev.id) : [...s, ev])
 
   const navigate = (p, payload) => {
     if (p === 'register') { setAuthMode('register'); setPage('auth'); return }
@@ -38,11 +40,11 @@ const App = () => {
     landing:              <LandingPage        onNavigate={navigate} isLoggedIn={isLoggedIn} user={user} />,
     auth:                 <AuthPage           onNavigate={navigate} mode={authMode} />,
     dashboard:            <DashboardPage      onNavigate={navigate} user={user} />,
-    'attendee-dashboard': <AttendeeDashboard  onNavigate={navigate} user={user} />,
+    'attendee-dashboard': <AttendeeDashboard  onNavigate={navigate} user={user} savedEvents={savedEvents} onToggleSave={toggleSave} />,
     discovery:            <DiscoveryPage      onNavigate={navigate} />,
     magazine:             <DiscoveryPage      onNavigate={navigate} defaultSection="magazine" />,
     'event-form':         <DashboardPage      onNavigate={navigate} user={user} />,
-    'event-detail':       <EventDetail        event={selectedEvent} onBack={() => setPage(prevPage)} onNavigate={navigate} />,
+    'event-detail':       <EventDetail        event={selectedEvent} onBack={() => setPage(prevPage)} onNavigate={navigate} isSaved={savedEvents.some(e => e.id === selectedEvent?.id)} onToggleSave={toggleSave} />,
   }
 
   return (

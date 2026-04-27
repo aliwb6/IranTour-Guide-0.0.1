@@ -1,16 +1,34 @@
 import React from 'react'
 import {
   ChevronRightIcon, MapPinIcon, CalendarIcon, UsersIcon,
-  ClockIcon, ExternalLinkIcon, SparklesIcon, TagIcon, SearchIcon,
+  ClockIcon, ExternalLinkIcon, SparklesIcon, TagIcon,
+  BookmarkIcon, ShareIcon, CheckIcon,
 } from '../icons.jsx'
-import { StatusBadge, Badge } from '../components.jsx'
+import { StatusBadge, Modal, Button, Input, EventCard } from '../components.jsx'
 import {
-  EVENT_CATEGORIES, CATEGORY_COLORS, formatJalali, toPersianNum, getEventImage,
+  EVENT_CATEGORIES, CATEGORY_COLORS, formatJalali, toPersianNum,
+  getEventImage, SAMPLE_EVENTS,
 } from '../utils.js'
 
-const EventDetail = ({ event, onBack }) => {
+const EventDetail = ({ event, onBack, onNavigate, isSaved = false, onToggleSave }) => {
   const [oppOpen, setOppOpen] = React.useState(false)
   const [chalOpen, setChalOpen] = React.useState(false)
+  const [rsvpOpen, setRsvpOpen] = React.useState(false)
+  const [rsvpDone, setRsvpDone] = React.useState(false)
+  const [rsvpForm, setRsvpForm] = React.useState({ name: '', phone: '' })
+  const [shareCopied, setShareCopied] = React.useState(false)
+
+  const handleShare = () => {
+    const text = `${event.title} — رویداد ایران`
+    if (navigator.share) {
+      navigator.share({ title: text, text }).catch(() => {})
+    } else {
+      navigator.clipboard.writeText(text).then(() => {
+        setShareCopied(true)
+        setTimeout(() => setShareCopied(false), 2000)
+      })
+    }
+  }
 
   if (!event) return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-4 p-8 text-center">
@@ -31,6 +49,10 @@ const EventDetail = ({ event, onBack }) => {
   const catColor = cat ? CATEGORY_COLORS[cat.color] : CATEGORY_COLORS.slate
   const heroUrl = getEventImage(event)
 
+  const relatedEvents = SAMPLE_EVENTS
+    .filter(e => e.category === event.category && e.id !== event.id)
+    .slice(0, 3)
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Hero */}
@@ -46,6 +68,25 @@ const EventDetail = ({ event, onBack }) => {
           <ChevronRightIcon size={18} />
           بازگشت
         </button>
+
+        {/* Action buttons (top-left) */}
+        <div className="absolute top-4 left-4 flex items-center gap-2">
+          <button onClick={handleShare}
+            title={shareCopied ? 'کپی شد!' : 'اشتراک‌گذاری'}
+            className="flex items-center gap-1.5 bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white text-sm font-medium px-3 py-2 rounded-lg transition-all">
+            {shareCopied ? <CheckIcon size={16} strokeWidth={2.5} /> : <ShareIcon size={16} />}
+            {shareCopied ? 'کپی شد' : 'اشتراک'}
+          </button>
+          {onToggleSave && (
+            <button onClick={() => onToggleSave(event)}
+              title={isSaved ? 'حذف از ذخیره‌شده‌ها' : 'ذخیره رویداد'}
+              className={`flex items-center gap-1.5 backdrop-blur-sm text-sm font-medium px-3 py-2 rounded-lg transition-all
+                ${isSaved ? 'bg-yellow-400/90 hover:bg-yellow-400 text-yellow-900' : 'bg-black/30 hover:bg-black/50 text-white'}`}>
+              <BookmarkIcon size={16} className={isSaved ? 'fill-current' : ''} />
+              {isSaved ? 'ذخیره شد' : 'ذخیره'}
+            </button>
+          )}
+        </div>
 
         {/* Hero content */}
         <div className="absolute bottom-0 right-0 left-0 p-6">
@@ -128,16 +169,70 @@ const EventDetail = ({ event, onBack }) => {
           />
         )}
 
-        {/* CTA */}
-        {event.link && (
-          <a href={event.link} target="_blank" rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-white font-semibold text-base transition-all hover:opacity-90 active:opacity-80"
-            style={{ background: 'linear-gradient(135deg,#4338CA,#1E2E6E)', boxShadow: '0 4px 12px rgba(30,46,110,.3)' }}>
-            <ExternalLinkIcon size={18} />
-            مشاهده وب‌سایت رویداد
-          </a>
+        {/* CTAs */}
+        <div className="flex gap-3">
+          <button onClick={() => setRsvpOpen(true)}
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-white font-semibold text-base transition-all hover:opacity-90 active:opacity-80"
+            style={{ background: 'linear-gradient(135deg,#166534,#065F46)', boxShadow: '0 4px 12px rgba(22,101,52,.3)' }}>
+            <UsersIcon size={18} />
+            ثبت‌نام در رویداد
+          </button>
+          {event.link && (
+            <a href={event.link} target="_blank" rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl border border-indigo-300 text-indigo-700 font-semibold text-sm transition-all hover:bg-indigo-50 shrink-0">
+              <ExternalLinkIcon size={16} />
+              وب‌سایت
+            </a>
+          )}
+        </div>
+
+        {/* Related Events */}
+        {relatedEvents.length > 0 && (
+          <div>
+            <h3 className="font-bold text-slate-900 mb-3 text-base">رویدادهای مشابه</h3>
+            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {relatedEvents.map(ev => (
+                <EventCard key={ev.id} event={ev}
+                  onClick={() => onNavigate ? onNavigate('event-detail', ev) : null} />
+              ))}
+            </div>
+          </div>
         )}
       </div>
+
+      {/* RSVP Modal */}
+      <Modal open={rsvpOpen} onClose={() => { setRsvpOpen(false); setRsvpDone(false); setRsvpForm({ name: '', phone: '' }) }} title="ثبت‌نام در رویداد">
+        {rsvpDone ? (
+          <div className="text-center py-4 flex flex-col items-center gap-3">
+            <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center">
+              <CheckIcon size={26} className="text-emerald-600" strokeWidth={2.5} />
+            </div>
+            <p className="font-bold text-slate-900">ثبت‌نام موفق!</p>
+            <p className="text-sm text-slate-500 leading-relaxed">اطلاعات شما با موفقیت ثبت شد.<br />منتظر تأیید از سوی برگزارکننده باشید.</p>
+            <Button onClick={() => { setRsvpOpen(false); setRsvpDone(false) }} variant="success">بستن</Button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-slate-500 leading-relaxed">
+              برای ثبت‌نام در رویداد <strong className="text-slate-900">«{event.title}»</strong> اطلاعات خود را وارد کنید.
+            </p>
+            <Input label="نام و نام خانوادگی" required
+              value={rsvpForm.name} onChange={e => setRsvpForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="مثال: علی محمدی" />
+            <Input label="شماره موبایل" required
+              value={rsvpForm.phone} onChange={e => setRsvpForm(f => ({ ...f, phone: e.target.value }))}
+              placeholder="۰۹۱۲۳۴۵۶۷۸۹" />
+            <div className="flex gap-3 justify-end pt-1">
+              <Button variant="secondary" onClick={() => setRsvpOpen(false)}>انصراف</Button>
+              <Button variant="success"
+                disabled={!rsvpForm.name.trim() || !rsvpForm.phone.trim()}
+                onClick={() => setRsvpDone(true)}>
+                تأیید و ثبت‌نام
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

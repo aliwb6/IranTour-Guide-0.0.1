@@ -27,18 +27,30 @@ const AUDIENCES = [
 ]
 
 // ── Multi-Step Event Form ─────────────────────────────────────
-const EventForm = ({ onBack, onSuccess }) => {
+const dateToInput = (d) => {
+  if (!d) return ''
+  try { return (d instanceof Date ? d : new Date(d)).toISOString().split('T')[0] } catch { return '' }
+}
+
+const EventForm = ({ onBack, onSuccess, initialEvent = null }) => {
   const [step, setStep] = React.useState(0)
-  const [selectedCats, setSelectedCats] = React.useState([])
+  const [selectedCats, setSelectedCats] = React.useState(initialEvent ? [initialEvent.category].filter(Boolean) : [])
   const [selectedAudiences, setSelectedAudiences] = React.useState([])
   const [customCats, setCustomCats] = React.useState([])
   const [showAddCat, setShowAddCat] = React.useState(false)
   const [newCatInput, setNewCatInput] = React.useState('')
+  const [imagePreview, setImagePreview] = React.useState(null)
+  const fileInputRef = React.useRef(null)
   const [form, setForm] = React.useState({
-    title:'', province:'', venue:'',
-    startDate:'', endDate:'',
-    phone:'', email:'', website:'',
-    description:'',
+    title:     initialEvent?.title     || '',
+    province:  initialEvent?.province  || '',
+    venue:     initialEvent?.venue     || '',
+    startDate: dateToInput(initialEvent?.startDate),
+    endDate:   dateToInput(initialEvent?.endDate),
+    phone:     initialEvent?.phone     || '',
+    email:     initialEvent?.email     || '',
+    website:   initialEvent?.link      || '',
+    description: initialEvent?.description || '',
   })
   const steps = ['اطلاعات کلی', 'مکان', 'زمان‌بندی و تماس']
 
@@ -71,7 +83,7 @@ const EventForm = ({ onBack, onSuccess }) => {
             <ChevronRightIcon size={22} />
           </button>
           <div>
-            <h1 className="font-bold text-slate-900">ثبت رویداد جدید</h1>
+            <h1 className="font-bold text-slate-900">{initialEvent ? 'ویرایش رویداد' : 'ثبت رویداد جدید'}</h1>
             <p className="text-xs text-slate-500">مرحله {toPersianNum(step + 1)} از {toPersianNum(steps.length)}</p>
           </div>
         </div>
@@ -152,17 +164,37 @@ const EventForm = ({ onBack, onSuccess }) => {
 
             {/* Image Upload */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold text-slate-700">تصاویر رویداد</label>
-              <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 flex flex-col items-center gap-3 hover:border-indigo-300 hover:bg-indigo-50 transition-all cursor-pointer group">
-                <div className="w-12 h-12 bg-slate-100 group-hover:bg-indigo-100 rounded-xl flex items-center justify-center transition-all">
-                  <UploadIcon size={22} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
+              <label className="text-sm font-semibold text-slate-700">تصویر کاور رویداد</label>
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  const reader = new FileReader()
+                  reader.onload = ev => setImagePreview(ev.target.result)
+                  reader.readAsDataURL(file)
+                }} />
+              {imagePreview ? (
+                <div className="relative rounded-xl overflow-hidden border border-slate-200 h-40">
+                  <img src={imagePreview} alt="پیش‌نمایش" className="w-full h-full object-cover" />
+                  <button onClick={() => { setImagePreview(null); if (fileInputRef.current) fileInputRef.current.value = '' }}
+                    className="absolute top-2 left-2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1 transition-all">
+                    <XIcon size={14} />
+                  </button>
+                  <span className="absolute bottom-2 right-2 text-xs bg-black/50 text-white px-2 py-0.5 rounded-full">تصویر کاور</span>
                 </div>
-                <div className="text-center">
-                  <p className="text-sm font-medium text-slate-600">برای آپلود کلیک کنید یا فایل را رها کنید</p>
-                  <p className="text-xs text-slate-400 mt-0.5">PNG، JPG تا ۵ مگابایت — می‌توانید چند تصویر آپلود کنید</p>
-                </div>
-              </div>
-              <p className="text-xs text-slate-400">اولین تصویر به عنوان کاور رویداد نمایش داده می‌شود</p>
+              ) : (
+                <button type="button" onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-slate-200 rounded-xl p-6 flex flex-col items-center gap-3 hover:border-indigo-300 hover:bg-indigo-50 transition-all cursor-pointer group w-full text-center">
+                  <div className="w-12 h-12 bg-slate-100 group-hover:bg-indigo-100 rounded-xl flex items-center justify-center transition-all">
+                    <UploadIcon size={22} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-600">برای آپلود کلیک کنید</p>
+                    <p className="text-xs text-slate-400 mt-0.5">PNG، JPG تا ۵ مگابایت</p>
+                  </div>
+                </button>
+              )}
+              <p className="text-xs text-slate-400">این تصویر به عنوان کاور رویداد نمایش داده می‌شود</p>
             </div>
           </div>
         )}
@@ -260,9 +292,10 @@ const EventForm = ({ onBack, onSuccess }) => {
               مرحله بعد
             </Button>
           ) : (
-            <Button disabled={!canNext} onClick={onSuccess}
+            <Button disabled={!canNext}
+              onClick={() => onSuccess({ ...form, categories: selectedCats, audiences: selectedAudiences, imagePreview })}
               icon={<CheckIcon size={16} strokeWidth={2.5} />} variant="success">
-              ثبت نهایی رویداد
+              {initialEvent ? 'ذخیره تغییرات' : 'ثبت نهایی رویداد'}
             </Button>
           )}
         </div>
@@ -278,6 +311,7 @@ const DashboardPage = ({ onNavigate, user = {} }) => {
   const [deleteModal, setDeleteModal] = React.useState(null)
   const [events, setEvents] = React.useState(SAMPLE_EVENTS)
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
+  const [editingEvent, setEditingEvent] = React.useState(null)
 
   const displayName = user.name || 'علی محمدی'
   const initials = displayName.charAt(0)
@@ -352,7 +386,34 @@ const DashboardPage = ({ onNavigate, user = {} }) => {
   )
 
   if (activeTab === 'form') {
-    return <EventForm onBack={() => setActiveTab('overview')} onSuccess={() => { setActiveTab('overview'); showToast() }} />
+    return (
+      <EventForm
+        initialEvent={editingEvent}
+        onBack={() => { setEditingEvent(null); setActiveTab('overview') }}
+        onSuccess={(data) => {
+          if (editingEvent) {
+            setEvents(ev => ev.map(e => e.id === editingEvent.id
+              ? { ...e, title: data.title, province: data.province, venue: data.venue, category: data.categories[0] || e.category }
+              : e
+            ))
+            showToast('رویداد با موفقیت ویرایش شد!')
+          } else {
+            const newEv = {
+              id: Date.now(), title: data.title, province: data.province, venue: data.venue,
+              category: data.categories[0] || 'cultural', status: 'pending', attendees: 0,
+              startDate: data.startDate ? new Date(data.startDate) : new Date(),
+              endDate: data.endDate ? new Date(data.endDate) : new Date(),
+              phone: data.phone, email: data.email, link: data.website,
+              description: data.description, dateStr: data.startDate || '',
+            }
+            setEvents(ev => [newEv, ...ev])
+            showToast('رویداد با موفقیت ثبت شد!')
+          }
+          setEditingEvent(null)
+          setActiveTab('overview')
+        }}
+      />
+    )
   }
 
   return (
@@ -434,7 +495,7 @@ const DashboardPage = ({ onNavigate, user = {} }) => {
                           <div className="flex items-center gap-0.5">
                             <button title="مشاهده" onClick={() => onNavigate('event-detail', ev)}
                               className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><EyeIcon size={15} /></button>
-                            <button title="ویرایش" onClick={() => setActiveTab('form')}
+                            <button title="ویرایش" onClick={() => { setEditingEvent(ev); setActiveTab('form') }}
                               className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all"><EditIcon size={15} /></button>
                             <button title="حذف" onClick={() => setDeleteModal(ev)}
                               className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"><TrashIcon size={15} /></button>

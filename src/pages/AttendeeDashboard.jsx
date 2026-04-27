@@ -21,10 +21,14 @@ const getAiSuggestion = async (q) => {
   return tpl.replace('{q}', q).replace('{e1}', e1.title).replace('{p1}', e1.province).replace('{e2}', e2.title).replace('{p2}', e2.province)
 }
 
-const AttendeeDashboard = ({ onNavigate, user = {} }) => {
+const AttendeeDashboard = ({ onNavigate, user = {}, savedEvents: savedEventsProp, onToggleSave }) => {
   const [activeTab, setActiveTab] = React.useState('discover')
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
-  const [savedEvents, setSavedEvents] = React.useState(SAMPLE_EVENTS.slice(3, 6))
+  const [savedEvents, setSavedEvents] = React.useState(savedEventsProp?.length > 0 ? savedEventsProp : SAMPLE_EVENTS.slice(3, 6))
+
+  React.useEffect(() => {
+    if (savedEventsProp) setSavedEvents(savedEventsProp)
+  }, [savedEventsProp])
   const [aiInput, setAiInput] = React.useState('')
   const [aiLoading, setAiLoading] = React.useState(false)
   const [aiResult, setAiResult] = React.useState(null)
@@ -45,7 +49,10 @@ const AttendeeDashboard = ({ onNavigate, user = {} }) => {
     setTimeout(() => setProfileSaved(false), 2500)
   }
 
-  const unsaveEvent = (id) => setSavedEvents(s => s.filter(e => e.id !== id))
+  const unsaveEvent = (ev) => {
+    setSavedEvents(s => s.filter(e => e.id !== ev.id))
+    if (onToggleSave) onToggleSave(ev)
+  }
 
   const tabs = [
     { id: 'discover', label: 'کشف رویداد',   icon: <SearchIcon size={16} /> },
@@ -188,7 +195,7 @@ const AttendeeDashboard = ({ onNavigate, user = {} }) => {
                       {savedEvents.map(ev => (
                         <div key={ev.id} className="relative group">
                           <EventCard event={ev} onClick={() => onNavigate('event-detail', ev)} />
-                          <button onClick={() => unsaveEvent(ev.id)}
+                          <button onClick={() => unsaveEvent(ev)}
                             className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 hover:bg-red-50 text-red-500 rounded-full p-1.5 shadow-sm">
                             <XIcon size={13} />
                           </button>

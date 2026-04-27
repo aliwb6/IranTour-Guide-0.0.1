@@ -2,9 +2,9 @@ import React from 'react'
 import {
   SearchIcon, ChevronRightIcon, FilterIcon,
   TagIcon, MapPinIcon, CalendarIcon, SparklesIcon,
-  XIcon, BookOpenIcon, ClockIcon,
+  XIcon, BookOpenIcon, ClockIcon, SortIcon,
 } from '../icons.jsx'
-import { EventCard, SectionHeader, Input } from '../components.jsx'
+import { EventCard, SectionHeader, Input, Modal } from '../components.jsx'
 import {
   SAMPLE_EVENTS, SAMPLE_ARTICLES, EVENT_CATEGORIES, CATEGORY_COLORS,
   IRAN_PROVINCES, toPersianNum, formatJalali,
@@ -30,6 +30,9 @@ const DiscoveryPage = ({ onNavigate, defaultSection = 'events' }) => {
   const [aiLoading, setAiLoading] = React.useState(false)
   const [aiResult, setAiResult] = React.useState(null)
   const [activeSection, setActiveSection] = React.useState(defaultSection)
+  const [filterOpen, setFilterOpen] = React.useState(false)
+  const [sortBy, setSortBy] = React.useState('default')
+  const [selectedArticle, setSelectedArticle] = React.useState(null)
 
   const toggleCat = (id) => setSelectedCats(c => c.includes(id) ? c.filter(x => x !== id) : [...c, id])
   const toggleProv = (p) => setSelectedProvinces(c => c.includes(p) ? c.filter(x => x !== p) : [...c, p])
@@ -48,6 +51,14 @@ const DiscoveryPage = ({ onNavigate, defaultSection = 'events' }) => {
     return matchSearch && matchCat && matchProv && matchFrom && matchTo
   })
 
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === 'newest')    return new Date(b.startDate) - new Date(a.startDate)
+    if (sortBy === 'oldest')    return new Date(a.startDate) - new Date(b.startDate)
+    if (sortBy === 'attendees') return (b.attendees || 0) - (a.attendees || 0)
+    if (sortBy === 'alpha')     return a.title.localeCompare(b.title, 'fa')
+    return 0
+  })
+
   const handleAiSuggest = async () => {
     if (!aiInterests.trim()) return
     setAiLoading(true)
@@ -60,9 +71,17 @@ const DiscoveryPage = ({ onNavigate, defaultSection = 'events' }) => {
     }
   }
 
-  // ── Filter Sidebar ──────────────────────────────────────────
-  const FilterSidebar = () => (
-    <aside className="w-64 shrink-0 flex flex-col gap-4">
+  const clearAllFilters = () => {
+    setSelectedCats([])
+    setSelectedProvinces([])
+    setDateFrom('')
+    setDateTo('')
+    setSearch('')
+  }
+
+  // ── Filter Content ──────────────────────────────────────────
+  const FilterContent = () => (
+    <div className="flex flex-col gap-4">
       {/* Categories */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
         <p className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
@@ -139,7 +158,7 @@ const DiscoveryPage = ({ onNavigate, defaultSection = 'events' }) => {
           <button onClick={() => { setDateFrom(''); setDateTo('') }} className="text-xs text-red-500 hover:text-red-700 mt-2 w-full text-center">پاک کردن</button>
         )}
       </div>
-    </aside>
+    </div>
   )
 
   // ── AI Suggestion Card ──────────────────────────────────────
@@ -172,12 +191,14 @@ const DiscoveryPage = ({ onNavigate, defaultSection = 'events' }) => {
     </div>
   )
 
+  const activeFilterCount = selectedCats.length + selectedProvinces.length + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0)
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Top bar */}
       <div className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-          <button onClick={() => onNavigate('landing')} className="text-slate-400 hover:text-slate-700 transition-colors">
+          <button onClick={() => onNavigate('landing')} className="text-slate-400 hover:text-slate-700 transition-colors shrink-0">
             <ChevronRightIcon size={22} />
           </button>
           <div className="flex-1 relative">
@@ -186,7 +207,19 @@ const DiscoveryPage = ({ onNavigate, defaultSection = 'events' }) => {
               placeholder="جستجو در رویدادها، استان‌ها..."
               className="w-full border border-slate-200 rounded-lg pr-9 pl-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
           </div>
-          <div className="flex gap-1">
+          {/* Mobile filter button */}
+          {activeSection === 'events' && (
+            <button onClick={() => setFilterOpen(true)}
+              className="md:hidden relative flex items-center gap-1.5 px-3 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm text-slate-700 transition-all shrink-0">
+              <FilterIcon size={15} />
+              {activeFilterCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-600 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+          )}
+          <div className="flex gap-1 shrink-0">
             {['events','magazine'].map(sec => (
               <button key={sec} onClick={() => setActiveSection(sec)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all
@@ -198,9 +231,40 @@ const DiscoveryPage = ({ onNavigate, defaultSection = 'events' }) => {
         </div>
       </div>
 
+      {/* Mobile Filter Drawer */}
+      {filterOpen && (
+        <div className="fixed inset-0 z-50 flex md:hidden">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setFilterOpen(false)} />
+          <aside className="relative z-10 w-72 bg-slate-50 h-full overflow-y-auto border-l border-slate-200 flex flex-col">
+            <div className="flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0">
+              <span className="font-bold text-slate-900 flex items-center gap-2">
+                <FilterIcon size={16} className="text-blue-600" />فیلترها
+                {activeFilterCount > 0 && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">{activeFilterCount}</span>}
+              </span>
+              <button onClick={() => setFilterOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors">
+                <XIcon size={20} />
+              </button>
+            </div>
+            <div className="p-4">
+              <FilterContent />
+              {activeFilterCount > 0 && (
+                <button onClick={() => { clearAllFilters(); setFilterOpen(false) }}
+                  className="mt-3 w-full py-2.5 text-sm font-medium text-red-600 border border-red-200 rounded-xl hover:bg-red-50 transition-all">
+                  پاک کردن همه فیلترها
+                </button>
+              )}
+            </div>
+          </aside>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 py-6 flex gap-6 w-full">
-        {/* Sidebar — events only */}
-        {activeSection === 'events' && <div className="hidden md:block"><FilterSidebar /></div>}
+        {/* Desktop Sidebar */}
+        {activeSection === 'events' && (
+          <div className="hidden md:block w-64 shrink-0">
+            <FilterContent />
+          </div>
+        )}
 
         {/* Content */}
         <div className="flex-1 min-w-0">
@@ -228,22 +292,33 @@ const DiscoveryPage = ({ onNavigate, defaultSection = 'events' }) => {
                 </div>
               )}
 
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-4 gap-3">
                 <p className="text-sm text-slate-600">
-                  <strong className="text-slate-900">{toPersianNum(filtered.length)}</strong> رویداد یافت شد
+                  <strong className="text-slate-900">{toPersianNum(sorted.length)}</strong> رویداد یافت شد
                 </p>
+                <div className="flex items-center gap-1.5">
+                  <SortIcon size={14} className="text-slate-400" />
+                  <select value={sortBy} onChange={e => setSortBy(e.target.value)}
+                    className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white cursor-pointer">
+                    <option value="default">پیش‌فرض</option>
+                    <option value="newest">جدیدترین</option>
+                    <option value="oldest">قدیمی‌ترین</option>
+                    <option value="attendees">بیشترین ظرفیت</option>
+                    <option value="alpha">الفبایی</option>
+                  </select>
+                </div>
               </div>
 
-              {filtered.length > 0 ? (
+              {sorted.length > 0 ? (
                 <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {filtered.map(ev => <EventCard key={ev.id} event={ev} onClick={() => onNavigate('event-detail', ev)} />)}
+                  {sorted.map(ev => <EventCard key={ev.id} event={ev} onClick={() => onNavigate('event-detail', ev)} />)}
                 </div>
               ) : (
                 <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
                   <SearchIcon size={36} className="text-slate-300 mx-auto mb-3" />
                   <p className="font-semibold text-slate-700">رویدادی یافت نشد</p>
                   <p className="text-sm text-slate-500 mt-1">فیلترهای خود را تغییر دهید</p>
-                  <button onClick={() => { setSelectedCats([]); setSelectedProvinces([]); setSearch('') }}
+                  <button onClick={clearAllFilters}
                     className="mt-4 text-sm text-blue-700 font-medium">پاک کردن همه فیلترها</button>
                 </div>
               )}
@@ -258,11 +333,14 @@ const DiscoveryPage = ({ onNavigate, defaultSection = 'events' }) => {
                 {SAMPLE_ARTICLES.map(art => {
                   const cat = EVENT_CATEGORIES.find(c => c.id === art.category)
                   const cc  = cat ? CATEGORY_COLORS[cat.color] : CATEGORY_COLORS.slate
+                  const imgIds = ['1524995997946-a1c2e315a42f','1497633762265-9d179a990aa6','1469474968028-56623f02e42e','1553729459-efe14ef6055d','1514320291840-2e0a9bf2a9ae','1461896836934-ffe607ba8211','1518770660439-4636190af475','1541961017774-22349e4a1262','1533174072545-7a4b6ad7a6c3']
                   return (
-                    <div key={art.id} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer overflow-hidden flex flex-col">
+                    <div key={art.id}
+                      onClick={() => setSelectedArticle(art)}
+                      className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer overflow-hidden flex flex-col">
                       <div className="h-40 relative overflow-hidden bg-slate-100">
                         <img
-                          src={`https://images.unsplash.com/photo-${['1524995997946-a1c2e315a42f','1497633762265-9d179a990aa6','1469474968028-56623f02e42e'][art.id % 3]}?w=600&h=300&fit=crop&auto=format&q=75`}
+                          src={`https://images.unsplash.com/photo-${imgIds[(art.id - 1) % imgIds.length]}?w=600&h=300&fit=crop&auto=format&q=75`}
                           alt={art.title} className="w-full h-full object-cover"
                           onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex' }} />
                         <div className="w-full h-full bg-gradient-to-br from-blue-100 to-slate-100 items-center justify-center hidden absolute inset-0">
@@ -288,6 +366,40 @@ const DiscoveryPage = ({ onNavigate, defaultSection = 'events' }) => {
           )}
         </div>
       </div>
+
+      {/* Article Detail Modal */}
+      {selectedArticle && (
+        <Modal open={!!selectedArticle} onClose={() => setSelectedArticle(null)} title={selectedArticle.title}>
+          <div className="flex flex-col gap-4">
+            <div className="h-40 rounded-xl overflow-hidden bg-slate-100">
+              {(() => {
+                const imgIds = ['1524995997946-a1c2e315a42f','1497633762265-9d179a990aa6','1469474968028-56623f02e42e','1553729459-efe14ef6055d','1514320291840-2e0a9bf2a9ae','1461896836934-ffe607ba8211','1518770660439-4636190af475','1541961017774-22349e4a1262','1533174072545-7a4b6ad7a6c3']
+                return (
+                  <img src={`https://images.unsplash.com/photo-${imgIds[(selectedArticle.id - 1) % imgIds.length]}?w=800&h=300&fit=crop&auto=format&q=80`}
+                    alt={selectedArticle.title} className="w-full h-full object-cover"
+                    onError={e => e.target.style.display='none'} />
+                )
+              })()}
+            </div>
+            <div className="flex items-center gap-3 text-xs text-slate-400">
+              <span>{formatJalali(selectedArticle.date)}</span>
+              <span>•</span>
+              <span className="flex items-center gap-1"><ClockIcon size={11} />{toPersianNum(selectedArticle.readTime)} دقیقه مطالعه</span>
+              {(() => {
+                const cat = EVENT_CATEGORIES.find(c => c.id === selectedArticle.category)
+                const cc = cat ? CATEGORY_COLORS[cat.color] : CATEGORY_COLORS.slate
+                return cat ? <span className="px-2 py-0.5 rounded-full text-xs font-medium" style={{background: cc.bg, color: cc.text}}>{cat.label}</span> : null
+              })()}
+            </div>
+            <p className="text-sm text-slate-700 leading-relaxed">{selectedArticle.content || selectedArticle.excerpt}</p>
+            <button onClick={() => setSelectedArticle(null)}
+              className="w-full py-2.5 rounded-xl text-white text-sm font-semibold hover:opacity-90 transition-all"
+              style={{ background: 'linear-gradient(135deg,#4338CA,#1E2E6E)' }}>
+              بستن
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }
