@@ -1,7 +1,7 @@
 import React from 'react'
 import {
   SearchIcon, StarIcon, UsersIcon, LogOutIcon, SparklesIcon,
-  CalendarIcon, ArrowLeftIcon, MenuIcon, XIcon,
+  CalendarIcon, ArrowLeftIcon, MenuIcon, XIcon, HomeIcon,
 } from '../icons.jsx'
 import { EventCard, StatCard, SectionHeader } from '../components.jsx'
 import { toPersianNum } from '../utils.js'
@@ -93,13 +93,14 @@ const AttendeeDashboard = ({ onNavigate, user = {}, savedEvents: savedEventsProp
               <XIcon size={20} />
             </button>
           )}
-          <div className="flex items-center gap-2 mb-4">
+          <button onClick={() => onNavigate('landing')}
+            className="flex items-center gap-2 mb-4 hover:opacity-80 transition-opacity cursor-pointer text-right w-full">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center"
               style={{ background: 'linear-gradient(135deg,#166534,#065F46)' }}>
               <UsersIcon size={15} className="text-white" strokeWidth={2.5} />
             </div>
             <span className="font-bold text-white">رویدادیار</span>
-          </div>
+          </button>
           <div className="flex items-center gap-3 rounded-lg p-2.5" style={{ background: 'rgba(255,255,255,.07)' }}>
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
               style={{ background: 'rgba(22,101,52,.4)', color: '#6EE7B7' }}>{initials}</div>
@@ -117,7 +118,11 @@ const AttendeeDashboard = ({ onNavigate, user = {}, savedEvents: savedEventsProp
               {t.icon}<span>{t.label}</span>
             </button>
           ))}
-          <div className="mt-auto pt-3" style={{ borderTop: '1px solid rgba(255,255,255,.07)' }}>
+          <div className="mt-auto pt-3 flex flex-col gap-1" style={{ borderTop: '1px solid rgba(255,255,255,.07)' }}>
+            <button onClick={() => onNavigate('landing')}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all w-full sidebar-nav-item">
+              <HomeIcon size={17} /><span>صفحه اصلی</span>
+            </button>
             <button onClick={() => onNavigate('logout')}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all w-full sidebar-nav-item">
               <LogOutIcon size={17} /><span>خروج</span>

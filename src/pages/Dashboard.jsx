@@ -407,12 +407,13 @@ const DashboardPage = ({ onNavigate, user = {} }) => {
             <XIcon size={20} />
           </button>
         )}
-        <div className="flex items-center gap-2 mb-4">
+        <button onClick={() => onNavigate('landing')}
+          className="flex items-center gap-2 mb-4 hover:opacity-80 transition-opacity cursor-pointer text-right w-full">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#4338CA,#1E2E6E)' }}>
             <CalendarIcon size={15} className="text-white" strokeWidth={2.5} />
           </div>
           <span className="font-bold text-white">رویدادیار</span>
-        </div>
+        </button>
         <div className="flex items-center gap-3 rounded-lg p-2.5" style={{ background: 'rgba(255,255,255,.07)' }}>
           <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
             style={{ background: 'rgba(67,56,202,.4)', color: '#A5B4FC' }}>{initials}</div>
@@ -430,7 +431,11 @@ const DashboardPage = ({ onNavigate, user = {} }) => {
             {item.icon}<span>{item.label}</span>
           </button>
         ))}
-        <div className="mt-auto pt-3" style={{ borderTop: '1px solid rgba(255,255,255,.07)' }}>
+        <div className="mt-auto pt-3 flex flex-col gap-1" style={{ borderTop: '1px solid rgba(255,255,255,.07)' }}>
+          <button onClick={() => onNavigate('landing')}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all w-full sidebar-nav-item">
+            <HomeIcon size={17} /><span>صفحه اصلی</span>
+          </button>
           <button onClick={() => onNavigate('logout')}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all w-full sidebar-nav-item">
             <LogOutIcon size={17} /><span>خروج</span>
