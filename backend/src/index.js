@@ -11,11 +11,25 @@ const { errorHandler }   = require('./middleware/errorHandler')
 const app  = express()
 const PORT = process.env.PORT || 5000
 
-// ── Middleware ────────────────────────────────────────────────
+// ── CORS ──────────────────────────────────────────────────────
+// FRONTEND_URL accepts a comma-separated list of allowed origins.
+// Set to "*" in Railway to allow all origins, or list specific URLs:
+//   FRONTEND_URL=https://your-app.vercel.app,http://localhost:5173
+const rawOrigins = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173'
+
+let corsOrigin
+if (rawOrigins === '*') {
+  corsOrigin = '*'
+} else {
+  corsOrigin = rawOrigins.split(',').map(s => s.trim())
+}
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
-  credentials: true,
+  origin: corsOrigin,
+  credentials: corsOrigin !== '*',
 }))
+
+// ── Body parsers ──────────────────────────────────────────────
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
