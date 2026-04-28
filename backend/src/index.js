@@ -9,7 +9,7 @@ const uploadRoutes       = require('./routes/upload.routes')
 const { errorHandler }   = require('./middleware/errorHandler')
 
 const app  = express()
-const PORT = process.env.PORT || 8080
+const PORT = process.env.PORT || 3000
 
 // ── CORS ──────────────────────────────────────────────────────
 // FRONTEND_URL accepts a comma-separated list of allowed origins.
@@ -52,7 +52,7 @@ app.use((req, res) => {
 // Global error handler (must be last)
 app.use(errorHandler)
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`)
-  console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`)
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`)
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`)
 })
