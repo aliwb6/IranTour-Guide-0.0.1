@@ -56,7 +56,6 @@ const LandingPage = ({ onNavigate, isLoggedIn, user = {} }) => {
   const stats = [
     { value: '۶۹',    label: 'رویداد ثبت‌شده' },
     { value: '۳۱',    label: 'استان فعال'    },
-    { value: '۱۴۰۴–۱۴۰۵', label: 'پوشش سالانه' },
     { value: '۲۰+',  label: 'دسته‌بندی رویداد' },
   ]
 

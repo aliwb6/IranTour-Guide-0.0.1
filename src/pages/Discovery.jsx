@@ -7,7 +7,7 @@ import {
 import { EventCard, SectionHeader, Input, Modal } from '../components.jsx'
 import {
   SAMPLE_ARTICLES, EVENT_CATEGORIES, CATEGORY_COLORS,
-  IRAN_PROVINCES, toPersianNum, formatJalali,
+  IRAN_PROVINCES, toPersianNum, formatJalali, jalaliToGregorian,
 } from '../utils.js'
 import { eventsAPI } from '../services/api.js'
 
@@ -40,6 +40,18 @@ const DiscoveryPage = ({ onNavigate, defaultSection = 'events' }) => {
   const toggleCat = (id) => setSelectedCats(c => c.includes(id) ? c.filter(x => x !== id) : [...c, id])
   const toggleProv = (p) => setSelectedProvinces(c => c.includes(p) ? c.filter(x => x !== p) : [...c, p])
 
+  const parseJalali = (str) => {
+    if (!str) return null
+    const ascii = str.replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d).toString())
+    const parts = ascii.split('/')
+    if (parts.length !== 3) return null
+    const [jy, jm, jd] = parts.map(Number)
+    if (!jy || !jm || !jd || jm < 1 || jm > 12 || jd < 1 || jd > 31) return null
+    try { return new Date(jalaliToGregorian(jy, jm, jd)) } catch { return null }
+  }
+  const dateFromGreg = parseJalali(dateFrom)
+  const dateToGreg   = parseJalali(dateTo)
+
   const filtered = events.filter(ev => {
     const q = search.trim().toLowerCase()
     const matchSearch = !q ||
@@ -49,8 +61,8 @@ const DiscoveryPage = ({ onNavigate, defaultSection = 'events' }) => {
       (ev.venue || '').toLowerCase().includes(q)
     const matchCat    = !selectedCats.length || selectedCats.includes(ev.category)
     const matchProv   = !selectedProvinces.length || selectedProvinces.includes(ev.province)
-    const matchFrom   = !dateFrom || new Date(ev.startDate) >= new Date(dateFrom)
-    const matchTo     = !dateTo   || new Date(ev.startDate) <= new Date(dateTo)
+    const matchFrom   = !dateFromGreg || new Date(ev.startDate) >= dateFromGreg
+    const matchTo     = !dateToGreg   || new Date(ev.startDate) <= dateToGreg
     return matchSearch && matchCat && matchProv && matchFrom && matchTo
   })
 
@@ -155,12 +167,13 @@ const DiscoveryPage = ({ onNavigate, defaultSection = 'events' }) => {
       {/* Date Range */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
         <p className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
-          <CalendarIcon size={14} className="text-blue-600" />بازه سفر
+          <CalendarIcon size={14} className="text-blue-600" />بازه زمانی
         </p>
         <div className="flex flex-col gap-2">
-          <Input placeholder="از تاریخ" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-          <Input placeholder="تا تاریخ"  type="date" value={dateTo}   onChange={e => setDateTo(e.target.value)} />
+          <Input placeholder="از تاریخ — سال/ماه/روز" type="text" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+          <Input placeholder="تا تاریخ — سال/ماه/روز"  type="text" value={dateTo}   onChange={e => setDateTo(e.target.value)} />
         </div>
+        <p className="text-xs text-slate-400 mt-1.5 text-right">مثال: ۱۴۰۴/۰۱/۰۱</p>
         {(dateFrom || dateTo) && (
           <button onClick={() => { setDateFrom(''); setDateTo('') }} className="text-xs text-red-500 hover:text-red-700 mt-2 w-full text-center">پاک کردن</button>
         )}
