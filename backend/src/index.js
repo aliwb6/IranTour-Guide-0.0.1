@@ -9,7 +9,11 @@ const uploadRoutes       = require('./routes/upload.routes')
 const { errorHandler }   = require('./middleware/errorHandler')
 
 const app  = express()
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT
+if (!PORT) {
+  console.error('PORT environment variable is not set!')
+  process.exit(1)
+}
 
 // ── CORS ──────────────────────────────────────────────────────
 // FRONTEND_URL accepts a comma-separated list of allowed origins.
@@ -55,4 +59,5 @@ app.use(errorHandler)
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`)
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`)
+  console.log(`Bound to 0.0.0.0:${PORT}`)
 })
