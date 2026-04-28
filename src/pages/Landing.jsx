@@ -263,9 +263,9 @@ const LandingPage = ({ onNavigate, isLoggedIn, user = {} }) => {
       {/* Stats Glass Band */}
       <section className="glass border-y border-white/10 py-10">
         <div className="max-w-6xl mx-auto px-5">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+          <div className="flex items-center justify-between gap-4">
             {stats.map((s, i) => (
-              <div key={i}>
+              <div key={i} className={`text-center flex-1 ${i === 0 ? 'text-right' : i === stats.length - 1 ? 'text-left' : 'text-center'}`}>
                 <div className="text-4xl font-extrabold text-white stat-number mb-1" style={{letterSpacing:'-.02em'}}>{s.value}</div>
                 <div className="text-blue-300 text-sm">{s.label}</div>
               </div>

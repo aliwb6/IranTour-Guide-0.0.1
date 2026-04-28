@@ -98,6 +98,18 @@ const DiscoveryPage = ({ onNavigate, defaultSection = 'events' }) => {
     setSearch('')
   }
 
+  // ── Build category list: standard + any custom from loaded events ──
+  const allCategories = React.useMemo(() => {
+    const knownIds = new Set(EVENT_CATEGORIES.map(c => c.id))
+    const custom = []
+    events.forEach(ev => {
+      if (ev.category && !knownIds.has(ev.category) && !custom.find(c => c.id === ev.category)) {
+        custom.push({ id: ev.category, label: ev.category, color: 'slate' })
+      }
+    })
+    return [...EVENT_CATEGORIES, ...custom]
+  }, [events])
+
   // ── Filter Content ──────────────────────────────────────────
   const FilterContent = () => (
     <div className="flex flex-col gap-4">
@@ -107,9 +119,9 @@ const DiscoveryPage = ({ onNavigate, defaultSection = 'events' }) => {
           <TagIcon size={14} className="text-blue-600" />دسته‌بندی
         </p>
         <div className="flex flex-col gap-1.5">
-          {EVENT_CATEGORIES.map(cat => {
+          {allCategories.map(cat => {
             const sel = selectedCats.includes(cat.id)
-            const c = CATEGORY_COLORS[cat.color]
+            const c = CATEGORY_COLORS[cat.color] || CATEGORY_COLORS.slate
             return (
               <button key={cat.id} onClick={() => toggleCat(cat.id)}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all text-right w-full

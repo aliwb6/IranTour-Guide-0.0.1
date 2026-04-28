@@ -316,7 +316,14 @@ const EventForm = ({ onBack, onSuccess, initialEvent = null, onError }) => {
                     email:       form.email     || undefined,
                     website:     form.website   || undefined,
                     description: form.description || undefined,
-                    category:    selectedCats[0] || 'cultural',
+                    category:    (() => {
+                      const id = selectedCats[0] || 'cultural'
+                      if (id.startsWith('custom_')) {
+                        const custom = customCats.find(c => c.id === id)
+                        return custom ? custom.label : 'cultural'
+                      }
+                      return id
+                    })(),
                     imageUrl,
                   }
                   let saved
