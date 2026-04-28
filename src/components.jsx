@@ -1,6 +1,6 @@
 import React from 'react'
 import { CheckIcon, XIcon, MapPinIcon, CalendarIcon, UsersIcon } from './icons.jsx'
-import { EVENT_CATEGORIES, CATEGORY_COLORS, formatJalali, toPersianNum, getEventImageThumb } from './utils.js'
+import { EVENT_CATEGORIES, CATEGORY_COLORS, formatJalali, toPersianNum } from './utils.js'
 
 // ── Button ────────────────────────────────────────────────────
 export const Button = ({ children, variant = 'primary', size = 'md', icon, iconLeft, disabled, onClick, className = '', type = 'button' }) => {
@@ -159,9 +159,6 @@ export const EventCard = ({ event, onClick }) => {
       className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col">
       <div className="h-36 relative overflow-hidden"
         style={{background:'linear-gradient(135deg,#1e3a5f,#0f2647)'}}>
-        <img src={getEventImageThumb(event)} alt={event.title}
-          className="w-full h-full object-cover" loading="lazy"
-          onError={e => { e.target.style.opacity='0' }} />
         <div className="absolute top-3 right-3">
           <span className="text-xs font-medium px-2 py-1 rounded-full" style={{background: catColor.bg, color: catColor.text}}>
             {cat ? cat.label : ''}
@@ -270,17 +267,13 @@ export const Toast = ({ message, type = 'success', visible }) => {
 }
 
 // ── GlassEventCard (dark landing) ─────────────────────────────
-const imgClasses = ['img-1','img-2','img-3','img-4','img-5','img-6']
-
 export const GlassEventCard = ({ event, idx, onClick }) => {
   const cat = EVENT_CATEGORIES.find(c => c.id === event.category)
   return (
     <div onClick={onClick}
       className="glass-card rounded-2xl overflow-hidden flex flex-col cursor-pointer hover:-translate-y-1 transition-all duration-200">
-      <div className={`h-36 relative overflow-hidden bg-slate-900`}>
-        <img src={getEventImageThumb(event)} alt={event.title}
-          className="w-full h-full object-cover opacity-70" loading="lazy"
-          onError={e => { e.target.style.display='none' }} />
+      <div className="h-36 relative overflow-hidden"
+        style={{background:'linear-gradient(135deg,#0f2647,#07102E)'}}>
         <div className="absolute top-3 right-3">
           <span className="text-xs font-semibold px-2.5 py-1 rounded-full backdrop-blur-sm"
             style={{background:'rgba(0,0,0,.35)', color:'#fff', border:'1px solid rgba(255,255,255,.15)'}}>

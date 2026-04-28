@@ -7,7 +7,6 @@ import {
 import { StatusBadge, Modal, Button, Input, EventCard } from '../components.jsx'
 import {
   EVENT_CATEGORIES, CATEGORY_COLORS, formatJalali, toPersianNum,
-  getEventImage,
 } from '../utils.js'
 import { eventsAPI } from '../services/api.js'
 
@@ -62,15 +61,12 @@ const EventDetail = ({ event, onBack, onNavigate, isSaved = false, onToggleSave 
 
   const cat = EVENT_CATEGORIES.find(c => c.id === event.category)
   const catColor = cat ? CATEGORY_COLORS[cat.color] : CATEGORY_COLORS.slate
-  const heroUrl = getEventImage(event)
 
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Hero */}
-      <div className="relative h-64 md:h-80 bg-slate-900 overflow-hidden">
-        <img src={heroUrl} alt={event.title}
-          className="w-full h-full object-cover opacity-60"
-          onError={e => { e.target.style.display='none' }} />
+      <div className="relative h-64 md:h-80 overflow-hidden"
+        style={{background:'linear-gradient(135deg,#0A1840,#07102E)'}}>
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent" />
 
         {/* Back button */}
