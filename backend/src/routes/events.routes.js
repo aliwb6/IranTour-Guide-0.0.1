@@ -20,6 +20,9 @@ const registerRules = [
   body('phone').trim().notEmpty().withMessage('Phone is required'),
 ]
 
+// Protected static routes BEFORE /:id to avoid Express matching "organizer" as an id param
+router.get('/organizer/my', protect, organizerOnly, getMyEvents)
+
 // Public routes
 router.get('/',     getEvents)
 router.get('/:id',  getEvent)
@@ -28,8 +31,7 @@ router.get('/:id',  getEvent)
 router.post('/:id/register', validate(registerRules), registerForEvent)
 
 // Protected routes
-router.get('/organizer/my',              protect, organizerOnly, getMyEvents)
-router.get('/:id/registrations',         protect, organizerOnly, getRegistrations)
+router.get('/:id/registrations', protect, organizerOnly, getRegistrations)
 router.post('/',   protect, organizerOnly, validate(eventRules), createEvent)
 router.put('/:id', protect, organizerOnly,                       updateEvent)
 router.delete('/:id', protect, organizerOnly,                    deleteEvent)
