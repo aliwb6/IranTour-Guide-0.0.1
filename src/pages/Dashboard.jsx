@@ -12,9 +12,10 @@ import {
 } from '../components.jsx'
 import {
   toPersianNum, formatJalali,
-  IRAN_PROVINCES, EVENT_CATEGORIES, CATEGORY_COLORS, SAMPLE_EVENTS,
+  IRAN_PROVINCES, EVENT_CATEGORIES, CATEGORY_COLORS,
 } from '../utils.js'
 import { UsersIcon, ClockIcon, StarIcon } from '../icons.jsx'
+import { eventsAPI, uploadAPI } from '../services/api.js'
 
 const AUDIENCES = [
   {id:'mixed',    label:'همگانی'},
@@ -32,7 +33,7 @@ const dateToInput = (d) => {
   try { return (d instanceof Date ? d : new Date(d)).toISOString().split('T')[0] } catch { return '' }
 }
 
-const EventForm = ({ onBack, onSuccess, initialEvent = null }) => {
+const EventForm = ({ onBack, onSuccess, initialEvent = null, onError }) => {
   const [step, setStep] = React.useState(0)
   const [selectedCats, setSelectedCats] = React.useState(initialEvent ? [initialEvent.category].filter(Boolean) : [])
   const [selectedAudiences, setSelectedAudiences] = React.useState([])
@@ -40,7 +41,9 @@ const EventForm = ({ onBack, onSuccess, initialEvent = null }) => {
   const [showAddCat, setShowAddCat] = React.useState(false)
   const [newCatInput, setNewCatInput] = React.useState('')
   const [imagePreview, setImagePreview] = React.useState(null)
+  const [submitting, setSubmitting] = React.useState(false)
   const fileInputRef = React.useRef(null)
+  const imageFileRef = React.useRef(null)
   const [form, setForm] = React.useState({
     title:     initialEvent?.title     || '',
     province:  initialEvent?.province  || '',
@@ -169,6 +172,7 @@ const EventForm = ({ onBack, onSuccess, initialEvent = null }) => {
                 onChange={e => {
                   const file = e.target.files?.[0]
                   if (!file) return
+                  imageFileRef.current = file
                   const reader = new FileReader()
                   reader.onload = ev => setImagePreview(ev.target.result)
                   reader.readAsDataURL(file)
@@ -292,10 +296,44 @@ const EventForm = ({ onBack, onSuccess, initialEvent = null }) => {
               مرحله بعد
             </Button>
           ) : (
-            <Button disabled={!canNext}
-              onClick={() => onSuccess({ ...form, categories: selectedCats, audiences: selectedAudiences, imagePreview })}
-              icon={<CheckIcon size={16} strokeWidth={2.5} />} variant="success">
-              {initialEvent ? 'ذخیره تغییرات' : 'ثبت نهایی رویداد'}
+            <Button disabled={!canNext || submitting}
+              onClick={async () => {
+                setSubmitting(true)
+                try {
+                  let imageUrl = initialEvent?.imageUrl || undefined
+                  if (imageFileRef.current) {
+                    const up = await uploadAPI.image(imageFileRef.current)
+                    imageUrl = up.url || up.secure_url || imageUrl
+                  }
+                  const payload = {
+                    title:       form.title,
+                    province:    form.province,
+                    city:        form.province,
+                    venue:       form.venue,
+                    startDate:   form.startDate || undefined,
+                    endDate:     form.endDate   || undefined,
+                    phone:       form.phone     || undefined,
+                    email:       form.email     || undefined,
+                    website:     form.website   || undefined,
+                    description: form.description || undefined,
+                    category:    selectedCats[0] || 'cultural',
+                    imageUrl,
+                  }
+                  let saved
+                  if (initialEvent) {
+                    saved = await eventsAPI.update(initialEvent.id, payload)
+                  } else {
+                    saved = await eventsAPI.create(payload)
+                  }
+                  onSuccess(saved.event || saved)
+                } catch (err) {
+                  onError?.(err.message || 'خطا در ذخیره رویداد')
+                } finally {
+                  setSubmitting(false)
+                }
+              }}
+              icon={submitting ? null : <CheckIcon size={16} strokeWidth={2.5} />} variant="success">
+              {submitting ? 'در حال ذخیره...' : initialEvent ? 'ذخیره تغییرات' : 'ثبت نهایی رویداد'}
             </Button>
           )}
         </div>
@@ -309,22 +347,39 @@ const DashboardPage = ({ onNavigate, user = {} }) => {
   const [activeTab, setActiveTab] = React.useState('overview')
   const [toast, setToast] = React.useState({ visible: false, message: '' })
   const [deleteModal, setDeleteModal] = React.useState(null)
-  const [events, setEvents] = React.useState(SAMPLE_EVENTS)
+  const [events, setEvents] = React.useState([])
+  const [loadingEvents, setLoadingEvents] = React.useState(true)
+  const [formError, setFormError] = React.useState('')
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
   const [editingEvent, setEditingEvent] = React.useState(null)
 
-  const displayName = user.name || 'علی محمدی'
+  const displayName = user.name || 'برگزارکننده'
   const initials = displayName.charAt(0)
+
+  // Load organizer's events on mount
+  React.useEffect(() => {
+    setLoadingEvents(true)
+    eventsAPI.myEvents()
+      .then(data => setEvents(Array.isArray(data) ? data : (data.events ?? [])))
+      .catch(() => {})
+      .finally(() => setLoadingEvents(false))
+  }, [])
 
   const showToast = (message = 'رویداد با موفقیت ثبت شد!') => {
     setToast({ visible: true, message })
     setTimeout(() => setToast({ visible: false, message: '' }), 3000)
   }
 
-  const deleteEvent = (id) => {
-    setEvents(ev => ev.filter(e => e.id !== id))
-    setDeleteModal(null)
-    showToast('رویداد با موفقیت حذف شد')
+  const deleteEvent = async (id) => {
+    try {
+      await eventsAPI.delete(id)
+      setEvents(ev => ev.filter(e => e.id !== id))
+      setDeleteModal(null)
+      showToast('رویداد با موفقیت حذف شد')
+    } catch (err) {
+      showToast(err.message || 'خطا در حذف رویداد')
+      setDeleteModal(null)
+    }
   }
 
   const activeCount = events.filter(e => e.status === 'active').length
@@ -356,7 +411,7 @@ const DashboardPage = ({ onNavigate, user = {} }) => {
           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#4338CA,#1E2E6E)' }}>
             <CalendarIcon size={15} className="text-white" strokeWidth={2.5} />
           </div>
-          <span className="font-bold text-white">رویداد ایران</span>
+          <span className="font-bold text-white">رویدادیار</span>
         </div>
         <div className="flex items-center gap-3 rounded-lg p-2.5" style={{ background: 'rgba(255,255,255,.07)' }}>
           <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
@@ -387,32 +442,31 @@ const DashboardPage = ({ onNavigate, user = {} }) => {
 
   if (activeTab === 'form') {
     return (
-      <EventForm
-        initialEvent={editingEvent}
-        onBack={() => { setEditingEvent(null); setActiveTab('overview') }}
-        onSuccess={(data) => {
-          if (editingEvent) {
-            setEvents(ev => ev.map(e => e.id === editingEvent.id
-              ? { ...e, title: data.title, province: data.province, venue: data.venue, category: data.categories[0] || e.category }
-              : e
-            ))
-            showToast('رویداد با موفقیت ویرایش شد!')
-          } else {
-            const newEv = {
-              id: Date.now(), title: data.title, province: data.province, venue: data.venue,
-              category: data.categories[0] || 'cultural', status: 'pending', attendees: 0,
-              startDate: data.startDate ? new Date(data.startDate) : new Date(),
-              endDate: data.endDate ? new Date(data.endDate) : new Date(),
-              phone: data.phone, email: data.email, link: data.website,
-              description: data.description, dateStr: data.startDate || '',
+      <>
+        {formError && (
+          <div className="fixed top-4 right-4 left-4 z-50 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 shadow-lg">
+            {formError}
+            <button onClick={() => setFormError('')} className="mr-3 text-red-400 hover:text-red-700">✕</button>
+          </div>
+        )}
+        <EventForm
+          initialEvent={editingEvent}
+          onBack={() => { setEditingEvent(null); setActiveTab('overview'); setFormError('') }}
+          onError={setFormError}
+          onSuccess={(savedEvent) => {
+            if (editingEvent) {
+              setEvents(ev => ev.map(e => e.id === editingEvent.id ? savedEvent : e))
+              showToast('رویداد با موفقیت ویرایش شد!')
+            } else {
+              setEvents(ev => [savedEvent, ...ev])
+              showToast('رویداد با موفقیت ثبت شد!')
             }
-            setEvents(ev => [newEv, ...ev])
-            showToast('رویداد با موفقیت ثبت شد!')
-          }
-          setEditingEvent(null)
-          setActiveTab('overview')
-        }}
-      />
+            setEditingEvent(null)
+            setActiveTab('overview')
+            setFormError('')
+          }}
+        />
+      </>
     )
   }
 
@@ -473,7 +527,16 @@ const DashboardPage = ({ onNavigate, user = {} }) => {
                   } />
 
                 <div className="flex flex-col gap-3">
-                  {events.slice(0, 5).map(ev => {
+                  {loadingEvents && Array.from({length: 3}).map((_, i) => (
+                    <div key={i} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-3 animate-pulse">
+                      <div className="w-10 h-10 rounded-xl bg-slate-200 shrink-0" />
+                      <div className="flex-1 flex flex-col gap-2">
+                        <div className="h-4 bg-slate-200 rounded w-1/2" />
+                        <div className="h-3 bg-slate-100 rounded w-1/3" />
+                      </div>
+                    </div>
+                  ))}
+                  {!loadingEvents && events.slice(0, 5).map(ev => {
                     const cat = EVENT_CATEGORIES.find(c => c.id === ev.category)
                     const cc = cat ? CATEGORY_COLORS[cat.color] : CATEGORY_COLORS.slate
                     return (
@@ -504,7 +567,7 @@ const DashboardPage = ({ onNavigate, user = {} }) => {
                       </div>
                     )
                   })}
-                  {events.length === 0 && (
+                  {!loadingEvents && events.length === 0 && (
                     <div className="bg-white rounded-xl border border-slate-200 p-10 text-center">
                       <CalendarIcon size={36} className="text-slate-300 mx-auto mb-3" />
                       <p className="font-semibold text-slate-700">هنوز رویدادی ثبت نشده</p>
@@ -521,6 +584,20 @@ const DashboardPage = ({ onNavigate, user = {} }) => {
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-sm text-slate-600"><strong className="text-slate-900">{toPersianNum(events.length)}</strong> رویداد ثبت‌شده</p>
                 </div>
+                {loadingEvents && (
+                  <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {Array.from({length: 4}).map((_, i) => (
+                      <div key={i} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-pulse">
+                        <div className="h-40 bg-slate-200" />
+                        <div className="p-4 flex flex-col gap-3">
+                          <div className="h-4 bg-slate-200 rounded w-3/4" />
+                          <div className="h-3 bg-slate-100 rounded w-1/2" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {!loadingEvents && (
                 <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
                   {events.map(ev => (
                     <EventCard key={ev.id} event={ev} onClick={() => onNavigate('event-detail', ev)} />
@@ -533,6 +610,7 @@ const DashboardPage = ({ onNavigate, user = {} }) => {
                     <span className="text-sm font-medium text-slate-500 group-hover:text-blue-700 transition-colors">افزودن رویداد جدید</span>
                   </button>
                 </div>
+                )}
               </div>
             )}
           </div>

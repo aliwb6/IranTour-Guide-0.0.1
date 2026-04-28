@@ -1,81 +1,126 @@
 import React from 'react'
 import { CalendarIcon, ChevronRightIcon, CheckIcon, LayoutIcon, UsersIcon } from '../icons.jsx'
+import { authAPI } from '../services/api.js'
+
+// ── All sub-components defined OUTSIDE AuthPage so React never remounts them ──
+
+const GlassInput = ({ label, type = 'text', value, onChange, placeholder, autoFocus, inputRef, onEnter, error }) => (
+  <div className="flex flex-col gap-1.5">
+    <label className="text-xs font-semibold text-blue-200">{label}</label>
+    <input
+      ref={inputRef}
+      type={type}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      autoFocus={autoFocus}
+      onKeyDown={e => { if (e.key === 'Enter' && onEnter) onEnter() }}
+      className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-blue-300/50 focus:outline-none focus:ring-2 transition-all"
+      style={{
+        background: error ? 'rgba(239,68,68,.12)' : 'rgba(255,255,255,.08)',
+        border: `1px solid ${error ? 'rgba(239,68,68,.5)' : 'rgba(255,255,255,.12)'}`,
+        boxShadow: error ? '0 0 0 3px rgba(239,68,68,.1)' : 'none',
+      }}
+    />
+    {error && <p className="text-xs text-red-400">{error}</p>}
+  </div>
+)
+
+const UserTypeToggle = ({ userType, setUserType }) => (
+  <div className="grid grid-cols-2 gap-2 mb-1">
+    {[
+      { id: 'organizer', label: 'برگزارکننده', icon: <LayoutIcon size={14} /> },
+      { id: 'attendee',  label: 'شرکت‌کننده',  icon: <UsersIcon  size={14} /> },
+    ].map(t => (
+      <button key={t.id} onClick={() => setUserType(t.id)}
+        className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all"
+        style={userType === t.id
+          ? { background: t.id === 'organizer' ? 'rgba(67,56,202,.35)' : 'rgba(22,101,52,.35)', border: `1px solid ${t.id === 'organizer' ? 'rgba(99,102,241,.5)' : 'rgba(52,211,153,.4)'}`, color: '#fff' }
+          : { background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: '#93C5FD' }}>
+        {t.icon}{t.label}
+      </button>
+    ))}
+  </div>
+)
+
+const ApiErrorBanner = ({ error }) => error ? (
+  <div className="bg-red-500/20 border border-red-500/40 rounded-xl px-4 py-3 text-xs text-red-300 text-center">
+    {error}
+  </div>
+) : null
+
+const Spinner = ({ isLogin }) => (
+  <span className="flex items-center justify-center gap-2">
+    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
+    {isLogin ? 'در حال ورود...' : 'در حال ثبت‌نام...'}
+  </span>
+)
+
+// ── Main component ────────────────────────────────────────────
 
 const AuthPage = ({ onNavigate, mode: initMode = 'login' }) => {
-  const [mode, setMode] = React.useState(initMode)
+  const [mode, setMode]         = React.useState(initMode)
   const [userType, setUserType] = React.useState('organizer')
-  const [regStep, setRegStep] = React.useState(0)
-  const [form, setForm] = React.useState({ name: '', phone: '', password: '' })
-  const [errors, setErrors] = React.useState({})
-  const [loading, setLoading] = React.useState(false)
-  const set = (k, v) => { setForm(f => ({ ...f, [k]: v })); setErrors(e => ({ ...e, [k]: '' })) }
+  const [regStep, setRegStep]   = React.useState(0)
+  const [form, setForm]         = React.useState({ name: '', email: '', phone: '', password: '' })
+  const [errors, setErrors]     = React.useState({})
+  const [apiError, setApiError] = React.useState('')
+  const [loading, setLoading]   = React.useState(false)
+
+  const emailRef    = React.useRef(null)
+  const phoneRef    = React.useRef(null)
+  const passwordRef = React.useRef(null)
+  const loginPassRef = React.useRef(null)
+
+  const set = (k, v) => {
+    setForm(f => ({ ...f, [k]: v }))
+    setErrors(e => ({ ...e, [k]: '' }))
+    setApiError('')
+  }
 
   const validate = (fields) => {
     const errs = {}
-    if (fields.includes('phone') && !form.phone.trim()) errs.phone = 'شماره موبایل یا ایمیل الزامی است'
-    if (fields.includes('password') && form.password.length < 4) errs.password = 'رمز عبور حداقل ۴ کاراکتر باید باشد'
-    if (fields.includes('name') && !form.name.trim()) errs.name = 'نام الزامی است'
+    if (fields.includes('email')    && !/\S+@\S+\.\S+/.test(form.email))    errs.email    = 'ایمیل معتبر وارد کنید'
+    if (fields.includes('password') && form.password.length < 6)            errs.password = 'رمز عبور حداقل ۶ کاراکتر باید باشد'
+    if (fields.includes('name')     && !form.name.trim())                   errs.name     = 'نام الزامی است'
     return errs
   }
 
-  const handleLogin = () => {
-    const errs = validate(['phone', 'password'])
+  const handleLogin = async () => {
+    const errs = validate(['email', 'password'])
     if (Object.keys(errs).length) { setErrors(errs); return }
     setLoading(true)
-    setTimeout(() => {
+    setApiError('')
+    try {
+      const { token, user } = await authAPI.login({ email: form.email, password: form.password })
+      onNavigate('landing', { token, id: user.id, name: user.name, type: user.type, email: user.email })
+    } catch (err) {
+      setApiError(err.message || 'ورود ناموفق بود')
+    } finally {
       setLoading(false)
-      const dest = userType === 'organizer' ? 'dashboard' : 'attendee-dashboard'
-      onNavigate(dest, { name: form.phone.includes('@') ? form.phone.split('@')[0] : form.phone, type: userType })
-    }, 800)
+    }
   }
 
-  const handleRegister = () => {
-    const errs = validate(['name', 'phone', 'password'])
+  const handleRegister = async () => {
+    const errs = validate(['name', 'email', 'password'])
     if (Object.keys(errs).length) { setErrors(errs); return }
     setLoading(true)
-    setTimeout(() => {
+    setApiError('')
+    try {
+      const { token, user } = await authAPI.register({
+        name:     form.name.trim(),
+        email:    form.email.trim(),
+        password: form.password,
+        phone:    form.phone.trim() || undefined,
+        type:     userType,
+      })
+      onNavigate('landing', { token, id: user.id, name: user.name, type: user.type, email: user.email })
+    } catch (err) {
+      setApiError(err.message || 'ثبت‌نام ناموفق بود')
+    } finally {
       setLoading(false)
-      const dest = userType === 'organizer' ? 'dashboard' : 'attendee-dashboard'
-      onNavigate(dest, { name: form.name.trim(), type: userType })
-    }, 900)
+    }
   }
-
-  const GlassInput = ({ label, type = 'text', field, placeholder, autoFocus }) => (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-semibold text-blue-200">{label}</label>
-      <input
-        type={type}
-        value={form[field]}
-        onChange={e => set(field, e.target.value)}
-        placeholder={placeholder}
-        autoFocus={autoFocus}
-        onKeyDown={e => e.key === 'Enter' && (mode === 'login' ? handleLogin() : handleRegister())}
-        className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-blue-300/50 focus:outline-none focus:ring-2 transition-all"
-        style={{
-          background: errors[field] ? 'rgba(239,68,68,.12)' : 'rgba(255,255,255,.08)',
-          border: `1px solid ${errors[field] ? 'rgba(239,68,68,.5)' : 'rgba(255,255,255,.12)'}`,
-          boxShadow: errors[field] ? '0 0 0 3px rgba(239,68,68,.1)' : 'none'
-        }} />
-      {errors[field] && <p className="text-xs text-red-400">{errors[field]}</p>}
-    </div>
-  )
-
-  const UserTypeToggle = () => (
-    <div className="grid grid-cols-2 gap-2 mb-1">
-      {[
-        { id: 'organizer', label: 'برگزارکننده', icon: <LayoutIcon size={14} /> },
-        { id: 'attendee',  label: 'شرکت‌کننده',  icon: <UsersIcon  size={14} /> },
-      ].map(t => (
-        <button key={t.id} onClick={() => setUserType(t.id)}
-          className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all"
-          style={userType === t.id
-            ? { background: t.id === 'organizer' ? 'rgba(67,56,202,.35)' : 'rgba(22,101,52,.35)', border: `1px solid ${t.id === 'organizer' ? 'rgba(99,102,241,.5)' : 'rgba(52,211,153,.4)'}`, color: '#fff' }
-            : { background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: '#93C5FD' }}>
-          {t.icon}{t.label}
-        </button>
-      ))}
-    </div>
-  )
 
   return (
     <div className="min-h-screen scene-bg flex flex-col relative overflow-hidden">
@@ -99,7 +144,7 @@ const AuthPage = ({ onNavigate, mode: initMode = 'login' }) => {
               style={{ background: 'linear-gradient(135deg,#4338CA,#1E2E6E)', boxShadow: '0 8px 24px rgba(30,46,110,.5)' }}>
               <CalendarIcon size={26} className="text-white" strokeWidth={2} />
             </div>
-            <h1 className="text-2xl font-extrabold text-white mb-1">رویداد ایران</h1>
+            <h1 className="text-2xl font-extrabold text-white mb-1">رویدادیار</h1>
             <p className="text-blue-300 text-sm">پلتفرم رسمی مدیریت رویداد</p>
           </div>
 
@@ -107,7 +152,7 @@ const AuthPage = ({ onNavigate, mode: initMode = 'login' }) => {
             {/* Mode Tabs */}
             <div className="flex border-b border-white/10">
               {[{ id: 'login', label: 'ورود' }, { id: 'register', label: 'ثبت‌نام' }].map(t => (
-                <button key={t.id} onClick={() => { setMode(t.id); setRegStep(0); setErrors({}) }}
+                <button key={t.id} onClick={() => { setMode(t.id); setRegStep(0); setErrors({}); setApiError('') }}
                   className={`flex-1 py-3.5 text-sm font-semibold transition-all ${mode === t.id ? 'text-white border-b-2 border-indigo-400' : 'text-blue-300 hover:text-white'}`}
                   style={mode === t.id ? { background: 'rgba(255,255,255,.05)' } : {}}>
                   {t.label}
@@ -122,23 +167,31 @@ const AuthPage = ({ onNavigate, mode: initMode = 'login' }) => {
                 <div className="flex flex-col gap-4">
                   <div className="flex flex-col gap-1.5">
                     <p className="text-xs font-semibold text-blue-200 mb-1">نوع حساب</p>
-                    <UserTypeToggle />
+                    <UserTypeToggle userType={userType} setUserType={setUserType} />
                   </div>
-                  <GlassInput label="شماره موبایل یا ایمیل" field="phone" placeholder="۰۹۱۲۳۴۵۶۷۸۹" autoFocus />
-                  <GlassInput label="رمز عبور" type="password" field="password" placeholder="••••••••" />
-                  <div className="flex justify-end">
+                  <GlassInput
+                    label="ایمیل" type="email" placeholder="example@email.com" autoFocus
+                    value={form.email} onChange={e => set('email', e.target.value)}
+                    error={errors.email} onEnter={() => loginPassRef.current?.focus()}
+                  />
+                  <GlassInput
+                    label="رمز عبور" type="password" placeholder="••••••••"
+                    inputRef={loginPassRef}
+                    value={form.password} onChange={e => set('password', e.target.value)}
+                    error={errors.password} onEnter={handleLogin}
+                  />
+                  <ApiErrorBanner error={apiError} />
+                  <div className="flex justify-end -mt-2">
                     <button className="text-xs text-blue-300 hover:text-white transition-colors">فراموشی رمز عبور</button>
                   </div>
                   <button onClick={handleLogin} disabled={loading}
                     className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all hover:-translate-y-0.5 disabled:opacity-60 mt-1"
                     style={{ background: userType === 'organizer' ? 'linear-gradient(135deg,#4338CA,#1E2E6E)' : 'linear-gradient(135deg,#166534,#065F46)', boxShadow: '0 6px 20px rgba(30,46,110,.5)' }}>
-                    {loading
-                      ? <span className="flex items-center justify-center gap-2"><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />در حال ورود...</span>
-                      : 'ورود به حساب'}
+                    {loading ? <Spinner isLogin /> : 'ورود به حساب'}
                   </button>
                   <p className="text-center text-xs text-blue-300">
                     حساب ندارید؟{' '}
-                    <button onClick={() => { setMode('register'); setRegStep(0); setErrors({}) }} className="text-white font-semibold hover:underline">ثبت‌نام کنید</button>
+                    <button onClick={() => { setMode('register'); setRegStep(0); setErrors({}); setApiError('') }} className="text-white font-semibold hover:underline">ثبت‌نام کنید</button>
                   </p>
                 </div>
               )}
@@ -193,18 +246,37 @@ const AuthPage = ({ onNavigate, mode: initMode = 'login' }) => {
                     <ChevronRightIcon size={13} />
                     {userType === 'organizer' ? 'برگزارکننده رویداد' : 'شرکت‌کننده'}
                   </button>
-                  <GlassInput label="نام و نام خانوادگی" field="name" placeholder="علی محمدی" autoFocus />
-                  <GlassInput label="شماره موبایل" field="phone" placeholder="۰۹۱۲۳۴۵۶۷۸۹" />
-                  <GlassInput label="رمز عبور" type="password" field="password" placeholder="حداقل ۴ کاراکتر" />
+                  <GlassInput
+                    label="نام و نام خانوادگی" placeholder="علی محمدی" autoFocus
+                    value={form.name} onChange={e => set('name', e.target.value)}
+                    error={errors.name} onEnter={() => emailRef.current?.focus()}
+                  />
+                  <GlassInput
+                    label="ایمیل" type="email" placeholder="example@email.com"
+                    inputRef={emailRef}
+                    value={form.email} onChange={e => set('email', e.target.value)}
+                    error={errors.email} onEnter={() => phoneRef.current?.focus()}
+                  />
+                  <GlassInput
+                    label="شماره موبایل (اختیاری)" placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+                    inputRef={phoneRef}
+                    value={form.phone} onChange={e => set('phone', e.target.value)}
+                    error={errors.phone} onEnter={() => passwordRef.current?.focus()}
+                  />
+                  <GlassInput
+                    label="رمز عبور" type="password" placeholder="حداقل ۶ کاراکتر"
+                    inputRef={passwordRef}
+                    value={form.password} onChange={e => set('password', e.target.value)}
+                    error={errors.password} onEnter={handleRegister}
+                  />
+                  <ApiErrorBanner error={apiError} />
                   <button onClick={handleRegister} disabled={loading}
                     className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all hover:-translate-y-0.5 disabled:opacity-50 mt-1"
                     style={{
                       background: userType === 'organizer' ? 'linear-gradient(135deg,#4338CA,#1E2E6E)' : 'linear-gradient(135deg,#166534,#065F46)',
-                      boxShadow: userType === 'organizer' ? '0 6px 20px rgba(30,46,110,.5)' : '0 6px 20px rgba(22,101,52,.4)'
+                      boxShadow:  userType === 'organizer' ? '0 6px 20px rgba(30,46,110,.5)' : '0 6px 20px rgba(22,101,52,.4)',
                     }}>
-                    {loading
-                      ? <span className="flex items-center justify-center gap-2"><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />در حال ثبت‌نام...</span>
-                      : 'ایجاد حساب کاربری'}
+                    {loading ? <Spinner /> : 'ایجاد حساب کاربری'}
                   </button>
                 </div>
               )}

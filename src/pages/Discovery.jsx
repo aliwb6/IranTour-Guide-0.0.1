@@ -6,21 +6,15 @@ import {
 } from '../icons.jsx'
 import { EventCard, SectionHeader, Input, Modal } from '../components.jsx'
 import {
-  SAMPLE_EVENTS, SAMPLE_ARTICLES, EVENT_CATEGORIES, CATEGORY_COLORS,
+  SAMPLE_ARTICLES, EVENT_CATEGORIES, CATEGORY_COLORS,
   IRAN_PROVINCES, toPersianNum, formatJalali,
 } from '../utils.js'
-
-// Simulate AI suggestion (placeholder for real API integration)
-async function getAiSuggestion(interests) {
-  await new Promise(r => setTimeout(r, 1400))
-  const relevant = SAMPLE_EVENTS
-    .slice(0, 2)
-    .map(e => `• ${e.title} (${e.province}) — رویداد مرتبط با علاقه‌مندی‌های شما`)
-    .join('\n')
-  return `بر اساس علاقه‌مندی شما به «${interests}»، رویدادهای زیر پیشنهاد می‌شود:\n\n${relevant}\n\nبرای مشاهده جزئیات بیشتر روی هر رویداد کلیک کنید.`
-}
+import { eventsAPI } from '../services/api.js'
 
 const DiscoveryPage = ({ onNavigate, defaultSection = 'events' }) => {
+  const [events, setEvents]       = React.useState([])
+  const [loading, setLoading]     = React.useState(true)
+  const [fetchError, setFetchError] = React.useState('')
   const [search, setSearch] = React.useState('')
   const [selectedCats, setSelectedCats] = React.useState([])
   const [selectedProvinces, setSelectedProvinces] = React.useState([])
@@ -34,10 +28,19 @@ const DiscoveryPage = ({ onNavigate, defaultSection = 'events' }) => {
   const [sortBy, setSortBy] = React.useState('default')
   const [selectedArticle, setSelectedArticle] = React.useState(null)
 
+  React.useEffect(() => {
+    setLoading(true)
+    setFetchError('')
+    eventsAPI.list({ limit: 100 })
+      .then(data => setEvents(Array.isArray(data) ? data : (data.events ?? [])))
+      .catch(err => setFetchError(err.message || 'خطا در دریافت رویدادها'))
+      .finally(() => setLoading(false))
+  }, [])
+
   const toggleCat = (id) => setSelectedCats(c => c.includes(id) ? c.filter(x => x !== id) : [...c, id])
   const toggleProv = (p) => setSelectedProvinces(c => c.includes(p) ? c.filter(x => x !== p) : [...c, p])
 
-  const filtered = SAMPLE_EVENTS.filter(ev => {
+  const filtered = events.filter(ev => {
     const q = search.trim().toLowerCase()
     const matchSearch = !q ||
       ev.title.toLowerCase().includes(q) ||
@@ -64,8 +67,12 @@ const DiscoveryPage = ({ onNavigate, defaultSection = 'events' }) => {
     setAiLoading(true)
     setAiResult(null)
     try {
-      const text = await getAiSuggestion(aiInterests)
-      setAiResult(text)
+      await new Promise(r => setTimeout(r, 1400))
+      const relevant = events
+        .slice(0, 2)
+        .map(e => `• ${e.title} (${e.province}) — رویداد مرتبط با علاقه‌مندی‌های شما`)
+        .join('\n')
+      setAiResult(`بر اساس علاقه‌مندی شما به «${aiInterests}»، رویدادهای زیر پیشنهاد می‌شود:\n\n${relevant}\n\nبرای مشاهده جزئیات بیشتر روی هر رویداد کلیک کنید.`)
     } finally {
       setAiLoading(false)
     }
@@ -272,8 +279,33 @@ const DiscoveryPage = ({ onNavigate, defaultSection = 'events' }) => {
             <>
               <AiCard />
 
+              {/* Fetch error */}
+              {fetchError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 mb-4 flex items-center gap-2">
+                  <span className="font-semibold">خطا:</span> {fetchError}
+                  <button onClick={() => { setFetchError(''); setLoading(true); eventsAPI.list({ limit: 100 }).then(d => setEvents(Array.isArray(d) ? d : (d.events ?? []))).catch(e => setFetchError(e.message)).finally(() => setLoading(false)) }}
+                    className="mr-auto text-xs underline text-red-600 hover:text-red-800">تلاش مجدد</button>
+                </div>
+              )}
+
+              {/* Skeleton */}
+              {loading && (
+                <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-pulse">
+                      <div className="h-40 bg-slate-200" />
+                      <div className="p-4 flex flex-col gap-3">
+                        <div className="h-4 bg-slate-200 rounded w-3/4" />
+                        <div className="h-3 bg-slate-100 rounded w-1/2" />
+                        <div className="h-3 bg-slate-100 rounded w-2/3" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Active Filters */}
-              {(selectedCats.length > 0 || selectedProvinces.length > 0) && (
+              {!loading && (selectedCats.length > 0 || selectedProvinces.length > 0) && (
                 <div className="flex flex-wrap gap-2 mb-4">
                   {selectedCats.map(id => {
                     const cat = EVENT_CATEGORIES.find(c => c.id === id)
@@ -292,35 +324,39 @@ const DiscoveryPage = ({ onNavigate, defaultSection = 'events' }) => {
                 </div>
               )}
 
-              <div className="flex items-center justify-between mb-4 gap-3">
-                <p className="text-sm text-slate-600">
-                  <strong className="text-slate-900">{toPersianNum(sorted.length)}</strong> رویداد یافت شد
-                </p>
-                <div className="flex items-center gap-1.5">
-                  <SortIcon size={14} className="text-slate-400" />
-                  <select value={sortBy} onChange={e => setSortBy(e.target.value)}
-                    className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white cursor-pointer">
-                    <option value="default">پیش‌فرض</option>
-                    <option value="newest">جدیدترین</option>
-                    <option value="oldest">قدیمی‌ترین</option>
-                    <option value="attendees">بیشترین ظرفیت</option>
-                    <option value="alpha">الفبایی</option>
-                  </select>
-                </div>
-              </div>
+              {!loading && (
+                <>
+                  <div className="flex items-center justify-between mb-4 gap-3">
+                    <p className="text-sm text-slate-600">
+                      <strong className="text-slate-900">{toPersianNum(sorted.length)}</strong> رویداد یافت شد
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <SortIcon size={14} className="text-slate-400" />
+                      <select value={sortBy} onChange={e => setSortBy(e.target.value)}
+                        className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white cursor-pointer">
+                        <option value="default">پیش‌فرض</option>
+                        <option value="newest">جدیدترین</option>
+                        <option value="oldest">قدیمی‌ترین</option>
+                        <option value="attendees">بیشترین ظرفیت</option>
+                        <option value="alpha">الفبایی</option>
+                      </select>
+                    </div>
+                  </div>
 
-              {sorted.length > 0 ? (
-                <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {sorted.map(ev => <EventCard key={ev.id} event={ev} onClick={() => onNavigate('event-detail', ev)} />)}
-                </div>
-              ) : (
-                <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-                  <SearchIcon size={36} className="text-slate-300 mx-auto mb-3" />
-                  <p className="font-semibold text-slate-700">رویدادی یافت نشد</p>
-                  <p className="text-sm text-slate-500 mt-1">فیلترهای خود را تغییر دهید</p>
-                  <button onClick={clearAllFilters}
-                    className="mt-4 text-sm text-blue-700 font-medium">پاک کردن همه فیلترها</button>
-                </div>
+                  {sorted.length > 0 ? (
+                    <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {sorted.map(ev => <EventCard key={ev.id} event={ev} onClick={() => onNavigate('event-detail', ev)} />)}
+                    </div>
+                  ) : (
+                    <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
+                      <SearchIcon size={36} className="text-slate-300 mx-auto mb-3" />
+                      <p className="font-semibold text-slate-700">رویدادی یافت نشد</p>
+                      <p className="text-sm text-slate-500 mt-1">فیلترهای خود را تغییر دهید</p>
+                      <button onClick={clearAllFilters}
+                        className="mt-4 text-sm text-blue-700 font-medium">پاک کردن همه فیلترها</button>
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
@@ -328,7 +364,7 @@ const DiscoveryPage = ({ onNavigate, defaultSection = 'events' }) => {
           {/* Magazine Section */}
           {activeSection === 'magazine' && (
             <div>
-              <SectionHeader title="مجله رویداد ایران" subtitle="مقالات، راهنماهای سفر و اخبار رویدادها" />
+              <SectionHeader title="مجله رویدادیار" subtitle="مقالات، راهنماهای سفر و اخبار رویدادها" />
               <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
                 {SAMPLE_ARTICLES.map(art => {
                   const cat = EVENT_CATEGORIES.find(c => c.id === art.category)

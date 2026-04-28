@@ -4,49 +4,68 @@ import {
   CalendarIcon, ArrowLeftIcon, MenuIcon, XIcon,
 } from '../icons.jsx'
 import { EventCard, StatCard, SectionHeader } from '../components.jsx'
-import { toPersianNum, SAMPLE_EVENTS } from '../utils.js'
-
-const AI_RESPONSES = [
-  'بر اساس علاقه‌مندی شما به «{q}»، رویداد «{e1}» در {p1} و «{e2}» در {p2} پیشنهاد می‌شود. برای مشاهده جزئیات روی هر رویداد کلیک کنید.',
-  'رویدادهایی مرتبط با «{q}» پیدا شد: «{e1}» ({p1}) یکی از پرطرفدارترین رویدادها در این حوزه است. همچنین «{e2}» در {p2} می‌تواند جالب باشد.',
-  '«{q}» حوزه جذابی‌ است! «{e1}» در {p1} و «{e2}» در {p2} از رویدادهایی هستند که با علاقه‌مندی‌های شما تطابق دارند.',
-]
-
-const getAiSuggestion = async (q) => {
-  await new Promise(r => setTimeout(r, 1200))
-  const evs = SAMPLE_EVENTS.slice(0, Math.min(SAMPLE_EVENTS.length, 10))
-  const e1 = evs[Math.floor(Math.random() * 5)]
-  const e2 = evs[Math.floor(Math.random() * 5) + 5] || evs[1]
-  const tpl = AI_RESPONSES[Math.floor(Math.random() * AI_RESPONSES.length)]
-  return tpl.replace('{q}', q).replace('{e1}', e1.title).replace('{p1}', e1.province).replace('{e2}', e2.title).replace('{p2}', e2.province)
-}
+import { toPersianNum } from '../utils.js'
+import { eventsAPI, usersAPI } from '../services/api.js'
 
 const AttendeeDashboard = ({ onNavigate, user = {}, savedEvents: savedEventsProp, onToggleSave }) => {
   const [activeTab, setActiveTab] = React.useState('discover')
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
-  const [savedEvents, setSavedEvents] = React.useState(savedEventsProp?.length > 0 ? savedEventsProp : SAMPLE_EVENTS.slice(3, 6))
+  const [savedEvents, setSavedEvents] = React.useState(savedEventsProp || [])
+  const [featuredEvents, setFeaturedEvents] = React.useState([])
+  const [featuredLoading, setFeaturedLoading] = React.useState(true)
 
   React.useEffect(() => {
     if (savedEventsProp) setSavedEvents(savedEventsProp)
   }, [savedEventsProp])
+
+  React.useEffect(() => {
+    setFeaturedLoading(true)
+    eventsAPI.list({ limit: 6 })
+      .then(data => setFeaturedEvents(Array.isArray(data) ? data : (data.events ?? [])))
+      .catch(() => {})
+      .finally(() => setFeaturedLoading(false))
+  }, [])
+
   const [aiInput, setAiInput] = React.useState('')
   const [aiLoading, setAiLoading] = React.useState(false)
   const [aiResult, setAiResult] = React.useState(null)
-  const [profileForm, setProfileForm] = React.useState({ phone: '۰۹۱۲۳۴۵۶۷۸۹', email: 'sara@example.ir', city: 'تهران' })
+  const [profileForm, setProfileForm] = React.useState({
+    phone: user.phone || '',
+    email: user.email || '',
+    city:  user.city  || '',
+  })
   const [profileSaved, setProfileSaved] = React.useState(false)
+  const [profileSaving, setProfileSaving] = React.useState(false)
 
-  const displayName = user.name || 'سارا رضایی'
+  const displayName = user.name || 'کاربر'
   const initials = displayName.charAt(0)
 
   const handleAiSuggest = async () => {
     if (!aiInput.trim()) return
     setAiLoading(true); setAiResult(null)
-    try { setAiResult(await getAiSuggestion(aiInput)) } finally { setAiLoading(false) }
+    try {
+      await new Promise(r => setTimeout(r, 1200))
+      const evs = featuredEvents.slice(0, 6)
+      if (evs.length >= 2) {
+        const e1 = evs[0], e2 = evs[1]
+        setAiResult(`بر اساس علاقه‌مندی شما به «${aiInput}»، رویداد «${e1.title}» در ${e1.province} و «${e2.title}» در ${e2.province} پیشنهاد می‌شود.`)
+      } else {
+        setAiResult(`بر اساس علاقه‌مندی شما به «${aiInput}»، رویدادهای متناسب را از بخش کشف رویداد دنبال کنید.`)
+      }
+    } finally { setAiLoading(false) }
   }
 
-  const handleSaveProfile = () => {
-    setProfileSaved(true)
-    setTimeout(() => setProfileSaved(false), 2500)
+  const handleSaveProfile = async () => {
+    setProfileSaving(true)
+    try {
+      await usersAPI.updateProfile(profileForm)
+      setProfileSaved(true)
+      setTimeout(() => setProfileSaved(false), 2500)
+    } catch {
+      setProfileSaved(false)
+    } finally {
+      setProfileSaving(false)
+    }
   }
 
   const unsaveEvent = (ev) => {
@@ -79,7 +98,7 @@ const AttendeeDashboard = ({ onNavigate, user = {}, savedEvents: savedEventsProp
               style={{ background: 'linear-gradient(135deg,#166534,#065F46)' }}>
               <UsersIcon size={15} className="text-white" strokeWidth={2.5} />
             </div>
-            <span className="font-bold text-white">رویداد ایران</span>
+            <span className="font-bold text-white">رویدادیار</span>
           </div>
           <div className="flex items-center gap-3 rounded-lg p-2.5" style={{ background: 'rgba(255,255,255,.07)' }}>
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
@@ -177,11 +196,25 @@ const AttendeeDashboard = ({ onNavigate, user = {}, savedEvents: savedEventsProp
                       مشاهده همه <ArrowLeftIcon size={14} />
                     </button>
                   } />
-                <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {SAMPLE_EVENTS.slice(0, 6).map(ev => (
-                    <EventCard key={ev.id} event={ev} onClick={() => onNavigate('event-detail', ev)} />
-                  ))}
-                </div>
+                {featuredLoading ? (
+                  <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {Array.from({length: 6}).map((_, i) => (
+                      <div key={i} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-pulse">
+                        <div className="h-40 bg-slate-200" />
+                        <div className="p-4 flex flex-col gap-3">
+                          <div className="h-4 bg-slate-200 rounded w-3/4" />
+                          <div className="h-3 bg-slate-100 rounded w-1/2" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {featuredEvents.map(ev => (
+                      <EventCard key={ev.id} event={ev} onClick={() => onNavigate('event-detail', ev)} />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -242,10 +275,10 @@ const AttendeeDashboard = ({ onNavigate, user = {}, savedEvents: savedEventsProp
                       </div>
                     ))}
                   </div>
-                  <button onClick={handleSaveProfile}
-                    className="mt-5 w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
+                  <button onClick={handleSaveProfile} disabled={profileSaving}
+                    className="mt-5 w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-60"
                     style={{ background: 'linear-gradient(135deg,#166534,#065F46)' }}>
-                    {profileSaved ? '✓ ذخیره شد' : 'ذخیره تغییرات'}
+                    {profileSaving ? 'در حال ذخیره...' : profileSaved ? '✓ ذخیره شد' : 'ذخیره تغییرات'}
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-3">

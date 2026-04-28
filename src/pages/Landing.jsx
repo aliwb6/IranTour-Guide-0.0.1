@@ -84,7 +84,7 @@ const LandingPage = ({ onNavigate, isLoggedIn, user = {} }) => {
               <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{background:'linear-gradient(135deg,#4338CA,#1E2E6E)'}}>
                 <CalendarIcon size={16} className="text-white" strokeWidth={2} />
               </div>
-              <span className="font-bold text-white">رویداد ایران</span>
+              <span className="font-bold text-white">رویدادیار</span>
             </div>
             <button onClick={() => setMobileMenuOpen(false)} className="text-blue-300 hover:text-white transition-colors">
               <XIcon size={24} />
@@ -150,8 +150,8 @@ const LandingPage = ({ onNavigate, isLoggedIn, user = {} }) => {
               <CalendarIcon size={18} className="text-white" strokeWidth={2} />
             </div>
             <div>
-              <span className="font-bold text-white text-base">رویداد ایران</span>
-              <span className="hidden sm:inline text-xs text-blue-300 mr-1.5 font-normal">Event-Iran</span>
+              <span className="font-bold text-white text-base">رویدادیار</span>
+              <span className="hidden sm:inline text-xs text-blue-300 mr-1.5 font-normal">Ravyadyar</span>
             </div>
           </div>
           <nav className="hidden md:flex items-center gap-1 text-sm">
@@ -194,7 +194,7 @@ const LandingPage = ({ onNavigate, isLoggedIn, user = {} }) => {
       <section className="relative flex-1 flex flex-col items-center justify-center text-center px-5 py-24">
         <div className="inline-flex items-center gap-2 mb-7 px-4 py-2 rounded-full text-xs font-semibold crystal-badge">
           <SparklesIcon size={12} />
-          پلتفرم رسمی مدیریت رویداد ایران
+          پلتفرم رسمی مدیریت رویدادیار
         </div>
 
         <h1 className="text-5xl md:text-6xl font-extrabold text-white leading-tight mb-6 max-w-3xl"
@@ -278,7 +278,7 @@ const LandingPage = ({ onNavigate, isLoggedIn, user = {} }) => {
       {/* Features */}
       <section className="max-w-6xl mx-auto px-5 py-14">
         <div className="text-center mb-10">
-          <h2 className="text-2xl font-bold text-white mb-2">چرا رویداد ایران؟</h2>
+          <h2 className="text-2xl font-bold text-white mb-2">چرا رویدادیار؟</h2>
           <p className="text-blue-300 text-sm">ساده، سریع، قابل اعتماد</p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -341,16 +341,16 @@ const LandingPage = ({ onNavigate, isLoggedIn, user = {} }) => {
               style={{background:'linear-gradient(135deg,#4338CA,#1E2E6E)'}}>
               <CalendarIcon size={13} className="text-white" />
             </div>
-            <span className="text-white font-medium">رویداد ایران</span>
+            <span className="text-white font-medium">رویدادیار</span>
             <span className="text-white/20">|</span>
-            <span>Event-Iran</span>
+            <span>Ravyadyar</span>
           </div>
           <span className="text-blue-400 text-xs">© ۱۴۰۴ تمامی حقوق محفوظ است</span>
           <div className="flex items-center gap-5 text-xs">
             {[
-              { label: 'حریم خصوصی', title: 'حریم خصوصی', content: 'رویداد ایران اطلاعات شخصی کاربران را با احترام کامل نگهداری می‌کند.\n\n• اطلاعات شما بدون رضایت شما به اشخاص ثالث منتقل نخواهد شد.\n• داده‌های رویداد تنها برای اهداف پلتفرم استفاده می‌شود.\n• کاربران در هر زمان می‌توانند درخواست حذف اطلاعات خود را بدهند.\n\nبرای اطلاعات بیشتر با ما در تماس باشید.' },
-              { label: 'تماس با ما', title: 'تماس با ما', content: 'برای ارتباط با تیم رویداد ایران:\n\n📧 info@event-iran.ir\n📞 ۰۲۱-۱۲۳۴۵۶۷۸\n\nساعات پاسخگویی:\nشنبه تا چهارشنبه — ۹ صبح تا ۶ عصر\n\nآدرس:\nتهران، خیابان ولیعصر، ساختمان رویداد ایران' },
-              { label: 'راهنما', title: 'راهنمای استفاده', content: 'شروع با رویداد ایران:\n\n۱. ثبت‌نام رایگان با شماره موبایل\n۲. انتخاب نوع حساب: برگزارکننده یا شرکت‌کننده\n۳. کشف رویدادهای سراسر کشور\n۴. فیلتر بر اساس استان، دسته‌بندی و تاریخ\n\nبرای ثبت رویداد:\n• وارد داشبورد سازمان‌دهنده شوید\n• فرم سه‌مرحله‌ای را تکمیل کنید\n• رویداد خود را منتشر کنید' },
+              { label: 'حریم خصوصی', title: 'حریم خصوصی', content: 'رویدادیار اطلاعات شخصی کاربران را با احترام کامل نگهداری می‌کند.\n\n• اطلاعات شما بدون رضایت شما به اشخاص ثالث منتقل نخواهد شد.\n• داده‌های رویداد تنها برای اهداف پلتفرم استفاده می‌شود.\n• کاربران در هر زمان می‌توانند درخواست حذف اطلاعات خود را بدهند.\n\nبرای اطلاعات بیشتر با ما در تماس باشید.' },
+              { label: 'تماس با ما', title: 'تماس با ما', content: 'برای ارتباط با تیم رویدادیار:\n\n📧 info@ravyadyar.ir\n📞 ۰۲۱-۱۲۳۴۵۶۷۸\n\nساعات پاسخگویی:\nشنبه تا چهارشنبه — ۹ صبح تا ۶ عصر\n\nآدرس:\nتهران، خیابان ولیعصر، ساختمان رویدادیار' },
+              { label: 'راهنما', title: 'راهنمای استفاده', content: 'شروع با رویدادیار:\n\n۱. ثبت‌نام رایگان با شماره موبایل\n۲. انتخاب نوع حساب: برگزارکننده یا شرکت‌کننده\n۳. کشف رویدادهای سراسر کشور\n۴. فیلتر بر اساس استان، دسته‌بندی و تاریخ\n\nبرای ثبت رویداد:\n• وارد داشبورد سازمان‌دهنده شوید\n• فرم سه‌مرحله‌ای را تکمیل کنید\n• رویداد خود را منتشر کنید' },
             ].map(l => (
               <button key={l.label} onClick={() => setFooterModal(l)}
                 className="link-ul hover:text-white transition-colors">{l.label}</button>

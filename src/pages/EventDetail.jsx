@@ -7,8 +7,9 @@ import {
 import { StatusBadge, Modal, Button, Input, EventCard } from '../components.jsx'
 import {
   EVENT_CATEGORIES, CATEGORY_COLORS, formatJalali, toPersianNum,
-  getEventImage, SAMPLE_EVENTS,
+  getEventImage,
 } from '../utils.js'
+import { eventsAPI } from '../services/api.js'
 
 const EventDetail = ({ event, onBack, onNavigate, isSaved = false, onToggleSave }) => {
   const [oppOpen, setOppOpen] = React.useState(false)
@@ -16,10 +17,24 @@ const EventDetail = ({ event, onBack, onNavigate, isSaved = false, onToggleSave 
   const [rsvpOpen, setRsvpOpen] = React.useState(false)
   const [rsvpDone, setRsvpDone] = React.useState(false)
   const [rsvpForm, setRsvpForm] = React.useState({ name: '', phone: '' })
+  const [rsvpLoading, setRsvpLoading] = React.useState(false)
+  const [rsvpError, setRsvpError] = React.useState('')
   const [shareCopied, setShareCopied] = React.useState(false)
+  const [relatedEvents, setRelatedEvents] = React.useState([])
+
+  // Fetch related events when event changes
+  React.useEffect(() => {
+    if (!event?.category) return
+    eventsAPI.list({ category: event.category, limit: 4 })
+      .then(data => {
+        const list = Array.isArray(data) ? data : (data.events ?? [])
+        setRelatedEvents(list.filter(e => e.id !== event.id).slice(0, 3))
+      })
+      .catch(() => {})
+  }, [event?.id, event?.category])
 
   const handleShare = () => {
-    const text = `${event.title} — رویداد ایران`
+    const text = `${event.title} — رویدادیار`
     if (navigator.share) {
       navigator.share({ title: text, text }).catch(() => {})
     } else {
@@ -48,10 +63,6 @@ const EventDetail = ({ event, onBack, onNavigate, isSaved = false, onToggleSave 
   const cat = EVENT_CATEGORIES.find(c => c.id === event.category)
   const catColor = cat ? CATEGORY_COLORS[cat.color] : CATEGORY_COLORS.slate
   const heroUrl = getEventImage(event)
-
-  const relatedEvents = SAMPLE_EVENTS
-    .filter(e => e.category === event.category && e.id !== event.id)
-    .slice(0, 3)
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -201,7 +212,7 @@ const EventDetail = ({ event, onBack, onNavigate, isSaved = false, onToggleSave 
       </div>
 
       {/* RSVP Modal */}
-      <Modal open={rsvpOpen} onClose={() => { setRsvpOpen(false); setRsvpDone(false); setRsvpForm({ name: '', phone: '' }) }} title="ثبت‌نام در رویداد">
+      <Modal open={rsvpOpen} onClose={() => { setRsvpOpen(false); setRsvpDone(false); setRsvpForm({ name: '', phone: '' }); setRsvpError('') }} title="ثبت‌نام در رویداد">
         {rsvpDone ? (
           <div className="text-center py-4 flex flex-col items-center gap-3">
             <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center">
@@ -216,6 +227,9 @@ const EventDetail = ({ event, onBack, onNavigate, isSaved = false, onToggleSave 
             <p className="text-sm text-slate-500 leading-relaxed">
               برای ثبت‌نام در رویداد <strong className="text-slate-900">«{event.title}»</strong> اطلاعات خود را وارد کنید.
             </p>
+            {rsvpError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">{rsvpError}</div>
+            )}
             <Input label="نام و نام خانوادگی" required
               value={rsvpForm.name} onChange={e => setRsvpForm(f => ({ ...f, name: e.target.value }))}
               placeholder="مثال: علی محمدی" />
@@ -225,9 +239,19 @@ const EventDetail = ({ event, onBack, onNavigate, isSaved = false, onToggleSave 
             <div className="flex gap-3 justify-end pt-1">
               <Button variant="secondary" onClick={() => setRsvpOpen(false)}>انصراف</Button>
               <Button variant="success"
-                disabled={!rsvpForm.name.trim() || !rsvpForm.phone.trim()}
-                onClick={() => setRsvpDone(true)}>
-                تأیید و ثبت‌نام
+                disabled={rsvpLoading || !rsvpForm.name.trim() || !rsvpForm.phone.trim()}
+                onClick={async () => {
+                  setRsvpLoading(true); setRsvpError('')
+                  try {
+                    await eventsAPI.register(event.id, { name: rsvpForm.name.trim(), phone: rsvpForm.phone.trim() })
+                    setRsvpDone(true)
+                  } catch (err) {
+                    setRsvpError(err.message || 'خطا در ثبت‌نام')
+                  } finally {
+                    setRsvpLoading(false)
+                  }
+                }}>
+                {rsvpLoading ? 'در حال ثبت...' : 'تأیید و ثبت‌نام'}
               </Button>
             </div>
           </div>
