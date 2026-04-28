@@ -9,7 +9,7 @@ const uploadRoutes       = require('./routes/upload.routes')
 const { errorHandler }   = require('./middleware/errorHandler')
 
 const app  = express()
-const PORT = process.env.PORT || 5000
+const PORT = process.env.PORT || 8080
 
 // ── CORS ──────────────────────────────────────────────────────
 // FRONTEND_URL accepts a comma-separated list of allowed origins.
